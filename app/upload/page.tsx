@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, ChangeEvent, DragEvent } from "react";
+import { useState, useRef, useCallback, useEffect, ChangeEvent, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { SemesterSelector } from "@/components/SemesterSelector";
 import { useQuizStore } from "@/store/quizStore";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import { QUESTION_COUNT_OPTIONS } from "@/lib/types";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
@@ -17,6 +18,7 @@ type Phase = "idle" | "extracting" | "generating";
 
 export default function UploadPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useCurrentUser();
 
   const {
     pdfText,
@@ -24,12 +26,31 @@ export default function UploadPage() {
     semester,
     questionCount,
     supplementMode,
+    questions,
+    userAnswers,
+    quizComplete,
+    ensureOwner,
     setPdfText,
     setSemester,
     setQuestionCount,
     setSupplementMode,
     setQuestions,
   } = useQuizStore();
+
+  // Hydration guard — jangan render UI yang pakai persisted state
+  // sampai localStorage beneran ke-load
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  // Pastikan state yang ke-load milik user yang sekarang login,
+  // bukan bekas user sebelumnya
+  useEffect(() => {
+    if (!userLoading && user) {
+      ensureOwner(user.username);
+    }
+  }, [user, userLoading, ensureOwner]);
 
   const [dragActive, setDragActive] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -168,6 +189,70 @@ export default function UploadPage() {
                   <p className="text-red-400 font-medium">Terjadi kesalahan</p>
                   <p className="text-sm text-[#8b949e] mt-1">{error}</p>
                 </div>
+              </div>
+            </Card>
+          ) : null}
+
+          {/* Banner: ada kuis yang belum selesai */}
+          {hydrated && questions.length > 0 && !quizComplete ? (
+            <Card className="mb-6 border-[#238636] bg-[#1f2a1f]">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#238636] text-white text-sm font-bold flex-shrink-0">
+                    ↺
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[#e6edf3] font-medium">
+                      Kamu punya kuis yang belum selesai
+                    </p>
+                    <p className="text-sm text-[#8b949e] mt-0.5">
+                      {Object.keys(userAnswers).length} dari {questions.length} soal terjawab
+                      {fileName ? ` · ${fileName}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    onClick={() => router.push("/quiz")}
+                    size="sm"
+                  >
+                    Lanjutkan
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "Buang kuis yang belum selesai dan mulai upload PDF baru?"
+                        )
+                      ) {
+                        useQuizStore.getState().resetAll();
+                      }
+                    }}
+                  >
+                    Buang
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : null}
+
+          {/* Banner: PDF udah ke-upload tapi belum generate */}
+          {hydrated &&
+          pdfText &&
+          questions.length === 0 &&
+          fileName ? (
+            <Card className="mb-6 border-[#30363d] bg-[#0d1117]">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#21262d] border border-[#30363d] text-[#8b949e] text-xs font-bold flex-shrink-0">
+                  i
+                </span>
+                <p className="text-sm text-[#8b949e]">
+                  PDF <span className="text-[#e6edf3] font-medium">{fileName}</span> masih
+                  tersimpan. Langsung lanjut generate kuis di bawah, atau upload PDF lain
+                  untuk menggantinya.
+                </p>
               </div>
             </Card>
           ) : null}

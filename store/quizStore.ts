@@ -3,22 +3,28 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { QuizQuestion } from "@/lib/types";
 
 interface QuizState {
-  // PDF content extracted on the upload step
+  // Pemilik state ini (username). Dipakai untuk cek apakah user yang sekarang
+  // login itu sama dengan yang bikin state, kalau beda → clear.
+  ownerUsername: string | null;
+
+  // Isi PDF yang diekstrak
   pdfText: string;
   fileName: string;
 
-  // Quiz configuration
+  // Konfigurasi kuis
   semester: number;
   questionCount: number;
   supplementMode: boolean;
 
-  // Quiz data
+  // Data kuis
   questions: QuizQuestion[];
   userAnswers: Record<number, string>;
   currentQuestion: number;
   quizComplete: boolean;
 
   // Actions
+  setOwner: (username: string) => void;
+  ensureOwner: (currentUsername: string | null) => void;
   setPdfText: (text: string, fileName: string) => void;
   setSemester: (semester: number) => void;
   setQuestionCount: (count: number) => void;
@@ -33,19 +39,40 @@ interface QuizState {
   resetAll: () => void;
 }
 
-// sessionStorage-backed store so state survives page navigation but not tab close
+// Default state — dipakai juga buat reset setelah ganti user
+const initialState = {
+  ownerUsername: null as string | null,
+  pdfText: "",
+  fileName: "",
+  semester: 1,
+  questionCount: 10,
+  supplementMode: false,
+  questions: [] as QuizQuestion[],
+  userAnswers: {} as Record<number, string>,
+  currentQuestion: 0,
+  quizComplete: false,
+};
+
 export const useQuizStore = create<QuizState>()(
   persist(
-    (set) => ({
-      pdfText: "",
-      fileName: "",
-      semester: 1,
-      questionCount: 10,
-      supplementMode: false,
-      questions: [],
-      userAnswers: {},
-      currentQuestion: 0,
-      quizComplete: false,
+    (set, get) => ({
+      ...initialState,
+
+      setOwner: (username) => set({ ownerUsername: username }),
+
+      // Dipanggil saat mount halaman yang pakai store.
+      // Kalau owner state tidak cocok dengan user yang sekarang login,
+      // clear state supaya gak ada kebocoran antar user.
+      ensureOwner: (currentUsername) => {
+        const { ownerUsername } = get();
+        if (ownerUsername && currentUsername && ownerUsername !== currentUsername) {
+          // User yang login sekarang bukan pemilik data → clear
+          set({ ...initialState, ownerUsername: currentUsername });
+        } else if (!ownerUsername && currentUsername) {
+          // State baru, set owner
+          set({ ownerUsername: currentUsername });
+        }
+      },
 
       setPdfText: (text, fileName) => set({ pdfText: text, fileName }),
       setSemester: (semester) => set({ semester }),
@@ -82,7 +109,7 @@ export const useQuizStore = create<QuizState>()(
 
       completeQuiz: () => set({ quizComplete: true }),
 
-      // Reset only answers/progress but keep questions (for retake)
+      // Reset progress tapi keep questions (untuk retake)
       resetQuiz: () =>
         set({
           userAnswers: {},
@@ -90,30 +117,33 @@ export const useQuizStore = create<QuizState>()(
           quizComplete: false,
         }),
 
-      // Full reset back to initial state
+      // Reset semua (tapi keep owner username supaya session masih valid)
       resetAll: () =>
-        set({
-          pdfText: "",
-          fileName: "",
-          questions: [],
-          userAnswers: {},
-          currentQuestion: 0,
-          quizComplete: false,
-        }),
+        set((state) => ({
+          ...initialState,
+          ownerUsername: state.ownerUsername,
+        })),
     }),
     {
       name: "soalin-state",
-      // Use sessionStorage so data doesn't persist between browser sessions
+      version: 2,
+      // localStorage — persist walau tab ditutup / logout / refresh
       storage: createJSONStorage(() =>
         typeof window !== "undefined"
-          ? window.sessionStorage
-          : // Fallback no-op storage for SSR
-            {
+          ? window.localStorage
+          : {
               getItem: () => null,
               setItem: () => {},
               removeItem: () => {},
             }
       ),
+      // Kalau format version lama, skip hydrate (anggap reset)
+      migrate: (persistedState: unknown, version: number) => {
+        if (version < 2) {
+          return initialState as QuizState;
+        }
+        return persistedState as QuizState;
+      },
     }
   )
 );

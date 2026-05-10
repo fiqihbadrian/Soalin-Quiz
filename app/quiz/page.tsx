@@ -1,41 +1,76 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { QuestionCard } from "@/components/QuestionCard";
+import { Spinner } from "@/components/ui/Spinner";
 import { useQuizStore } from "@/store/quizStore";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import type { OptionKey } from "@/lib/types";
 
 export default function QuizPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useCurrentUser();
 
   const {
     questions,
     userAnswers,
     currentQuestion,
+    ensureOwner,
     setAnswer,
     nextQuestion,
     previousQuestion,
     completeQuiz,
   } = useQuizStore();
 
-  // Kalau user masuk tanpa ada soal, redirect ke upload
+  // Hydration guard — tunggu localStorage ke-load sebelum render/redirect
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (questions.length === 0) {
+    setHydrated(true);
+  }, []);
+
+  // Sync owner dengan user yang sekarang login
+  useEffect(() => {
+    if (!userLoading && user) {
+      ensureOwner(user.username);
+    }
+  }, [user, userLoading, ensureOwner]);
+
+  // Kalau user masuk tanpa ada soal (dan state udah hydrated), redirect ke upload
+  useEffect(() => {
+    if (hydrated && questions.length === 0) {
       router.replace("/upload");
     }
-  }, [questions.length, router]);
+  }, [hydrated, questions.length, router]);
 
-  if (questions.length === 0) {
+  // Pas pertama kali load dengan state yang udah ada, jump ke soal pertama
+  // yang belum dijawab (biar user gak bingung harus mulai dari mana)
+  const jumpedRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || jumpedRef.current) return;
+    if (questions.length === 0) return;
+    const answeredCount = Object.keys(userAnswers).length;
+    if (answeredCount > 0 && answeredCount < questions.length) {
+      const firstUnanswered = questions.findIndex((q) => !userAnswers[q.id]);
+      if (firstUnanswered >= 0) {
+        useQuizStore.getState().setCurrentQuestion(firstUnanswered);
+      }
+    }
+    jumpedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
+  // Tunggu hydration supaya gak salah redirect sebelum localStorage ke-load
+  if (!hydrated || (hydrated && questions.length === 0)) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
-          <p className="text-[#8b949e]">Mengalihkan...</p>
+          <Spinner label={!hydrated ? "Memuat kuis..." : "Mengalihkan..."} />
         </main>
       </div>
     );

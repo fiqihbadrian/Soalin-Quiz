@@ -1,23 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 import { ResultItem } from "@/components/ResultItem";
 import { useQuizStore } from "@/store/quizStore";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 export default function ResultsPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useCurrentUser();
 
   const {
     questions,
     userAnswers,
     semester,
+    ensureOwner,
     resetQuiz,
     resetAll,
   } = useQuizStore();
+
+  // Hydration guard
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  // Sync owner
+  useEffect(() => {
+    if (!userLoading && user) {
+      ensureOwner(user.username);
+    }
+  }, [user, userLoading, ensureOwner]);
 
   // Hitung skor
   const score = useMemo(() => {
@@ -29,21 +46,20 @@ export default function ResultsPage() {
   const total = questions.length;
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
 
-  // Redirect kalau tidak ada data
+  // Redirect kalau tidak ada data (tapi tunggu hydration dulu)
   useEffect(() => {
-    if (questions.length === 0) {
+    if (hydrated && questions.length === 0) {
       router.replace("/upload");
     }
-  }, [questions.length, router]);
+  }, [hydrated, questions.length, router]);
 
   // Simpan ke Supabase satu kali per kunjungan
   const savedRef = useRef(false);
   useEffect(() => {
     if (savedRef.current) return;
-    if (questions.length === 0) return;
+    if (!hydrated || questions.length === 0) return;
     savedRef.current = true;
 
-    // Fire-and-forget — kalau gagal tidak masalah
     fetch("/api/save-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,17 +69,15 @@ export default function ResultsPage() {
         score,
         total,
       }),
-    }).catch(() => {
-      // Diabaikan — tidak kritis
-    });
-  }, [questions.length, semester, total, score]);
+    }).catch(() => {});
+  }, [hydrated, questions.length, semester, total, score]);
 
-  if (questions.length === 0) {
+  if (!hydrated || questions.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
-          <p className="text-[#8b949e]">Mengalihkan...</p>
+          <Spinner label={!hydrated ? "Memuat hasil..." : "Mengalihkan..."} />
         </main>
       </div>
     );

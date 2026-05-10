@@ -27,6 +27,9 @@ export function HeaderUserMenu({ username, isAdmin }: HeaderUserMenuProps) {
 
   const onLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    // Sengaja TIDAK clear quiz state di localStorage supaya kalau user ini
+    // login lagi nanti, state-nya masih ada. ensureOwner di tiap halaman
+    // bakal handle kalau user berbeda yang login.
     setOpen(false);
     router.push("/");
     router.refresh();
