@@ -126,8 +126,8 @@ export default function AdminPanelPage() {
           ) : null}
 
           {notice ? (
-            <Card className="mb-6 border-[#238636]">
-              <p className="text-sm text-[#2ea043]">{notice}</p>
+            <Card className="mb-6 border-[#618eb3]">
+              <p className="text-sm text-[#7ba8cc]">{notice}</p>
             </Card>
           ) : null}
 
@@ -150,7 +150,7 @@ export default function AdminPanelPage() {
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
                     disabled={creating}
-                    className="w-full px-3 py-2 rounded-md bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
                     placeholder="contoh_user"
                   />
                 </div>
@@ -163,7 +163,7 @@ export default function AdminPanelPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={creating}
-                    className="w-full px-3 py-2 rounded-md bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
                     placeholder="minimal 6 karakter"
                   />
                 </div>

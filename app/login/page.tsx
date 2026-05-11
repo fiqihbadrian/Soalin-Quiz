@@ -66,7 +66,7 @@ function LoginForm() {
               Belum punya akun?{" "}
               <Link
                 href="/register"
-                className="text-[#2ea043] hover:underline"
+                className="text-[#7ba8cc] hover:underline"
               >
                 Info registrasi
               </Link>
@@ -75,7 +75,7 @@ function LoginForm() {
 
           <Card>
             {error ? (
-              <div className="mb-4 p-3 rounded-md border border-red-500/60 bg-red-500/10">
+              <div className="mb-4 p-3 rounded-full border border-red-500/60 bg-red-500/10">
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             ) : null}
@@ -95,7 +95,7 @@ function LoginForm() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
-                  className="w-full px-3 py-2 rounded-md bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
                   placeholder="usernamemu"
                 />
               </div>
@@ -114,7 +114,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  className="w-full px-3 py-2 rounded-md bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
                   placeholder="••••••••"
                 />
               </div>

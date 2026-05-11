@@ -5,6 +5,16 @@ export const metadata: Metadata = {
   title: "Soalin — Bikin Kuis Otomatis dari Materi Kuliah",
   description:
     "Upload PDF materi atau rangkuman kuliahmu, terus langsung dapet soal pilihan ganda yang nyesuai sama semester dan materi yang kamu pelajari. Cocok buat latihan sebelum quiz, uts, atau uas.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: "Soalin — Bikin Kuis Otomatis dari Materi Kuliah",
+    description:
+      "Upload PDF materi atau rangkuman kuliahmu, terus langsung dapet soal pilihan ganda yang nyesuai sama semester dan materi yang kamu pelajari.",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({

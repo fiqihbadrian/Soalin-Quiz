@@ -182,7 +182,7 @@ export default function UploadPage() {
           {error ? (
             <Card error className="mb-6">
               <div className="flex items-start gap-3">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-red-500/10 border border-red-500/60 text-red-400 text-sm font-bold">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/10 border border-red-500/60 text-red-400 text-sm font-bold">
                   !
                 </span>
                 <div>
@@ -195,10 +195,10 @@ export default function UploadPage() {
 
           {/* Banner: ada kuis yang belum selesai */}
           {hydrated && questions.length > 0 && !quizComplete ? (
-            <Card className="mb-6 border-[#238636] bg-[#1f2a1f]">
+            <Card className="mb-6 border-[#618eb3] bg-[#1a2a3a]">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#238636] text-white text-sm font-bold flex-shrink-0">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#618eb3] text-white text-sm font-bold flex-shrink-0">
                     ↺
                   </span>
                   <div className="min-w-0">
@@ -245,7 +245,7 @@ export default function UploadPage() {
           fileName ? (
             <Card className="mb-6 border-[#30363d] bg-[#0d1117]">
               <div className="flex items-start gap-3">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#21262d] border border-[#30363d] text-[#8b949e] text-xs font-bold flex-shrink-0">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#21262d] border border-[#30363d] text-[#8b949e] text-xs font-bold flex-shrink-0">
                   i
                 </span>
                 <p className="text-sm text-[#8b949e]">
@@ -269,9 +269,9 @@ export default function UploadPage() {
                 onDragOver={onDrag}
                 onDrop={onDrop}
                 className={[
-                  "mt-4 border-2 border-dashed rounded-md p-8 text-center transition-colors",
+                  "mt-4 border-2 border-dashed rounded-full p-8 text-center transition-colors",
                   dragActive
-                    ? "border-[#2ea043] bg-[#0d1117]"
+                    ? "border-[#7ba8cc] bg-[#0d1117]"
                     : "border-[#30363d] bg-[#0d1117]",
                 ].join(" ")}
               >
@@ -297,7 +297,7 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => inputRef.current?.click()}
                     disabled={busy}
-                    className="mt-3 px-4 py-2 text-sm rounded-md border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors disabled:opacity-50"
+                    className="mt-3 px-4 py-2 text-sm rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors disabled:opacity-50"
                   >
                     Pilih File
                   </button>
@@ -319,8 +319,8 @@ export default function UploadPage() {
               ) : null}
 
               {fileName && phase !== "extracting" ? (
-                <div className="mt-4 flex items-center gap-3 p-3 bg-[#0d1117] border border-[#30363d] rounded-md">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#21262d] border border-[#30363d] text-[#e6edf3] text-xs font-bold">
+                <div className="mt-4 flex items-center gap-3 p-3 bg-[#0d1117] border border-[#30363d] rounded-full">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#21262d] border border-[#30363d] text-[#e6edf3] text-xs font-bold">
                     PDF
                   </span>
                   <div className="min-w-0">
@@ -357,10 +357,10 @@ export default function UploadPage() {
                         type="button"
                         onClick={() => setQuestionCount(count)}
                         className={[
-                          "py-2 px-2 text-sm rounded-md border transition-colors",
-                          "focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
+                          "py-2 px-2 text-sm rounded-full border transition-colors",
+                          "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
                           isActive
-                            ? "bg-[#238636] border-[#238636] text-white hover:bg-[#2ea043]"
+                            ? "bg-[#618eb3] border-[#618eb3] text-white hover:bg-[#7ba8cc]"
                             : "bg-[#161b22] border-[#30363d] text-[#e6edf3] hover:border-[#8b949e]",
                         ].join(" ")}
                       >
@@ -381,10 +381,10 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => setSupplementMode(false)}
                     className={[
-                      "py-3 px-3 text-left rounded-md border transition-colors",
-                      "focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
+                      "py-3 px-3 text-left rounded-2xl border transition-colors",
+                      "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
                       !supplementMode
-                        ? "bg-[#1f2a1f] border-[#238636]"
+                        ? "bg-[#1a2a3a] border-[#618eb3]"
                         : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
                     ].join(" ")}
                     aria-pressed={!supplementMode}
@@ -401,10 +401,10 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => setSupplementMode(true)}
                     className={[
-                      "py-3 px-3 text-left rounded-md border transition-colors",
-                      "focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
+                      "py-3 px-3 text-left rounded-2xl border transition-colors",
+                      "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
                       supplementMode
-                        ? "bg-[#1f2a1f] border-[#238636]"
+                        ? "bg-[#1a2a3a] border-[#618eb3]"
                         : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
                     ].join(" ")}
                     aria-pressed={supplementMode}

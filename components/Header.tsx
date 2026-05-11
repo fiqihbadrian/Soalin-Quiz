@@ -33,9 +33,11 @@ export function Header() {
           href="/"
           className="flex items-center gap-2 text-[#e6edf3] hover:text-white transition-colors"
         >
-          <span className="inline-flex items-center justify-center h-7 w-7 bg-[#238636] rounded-md text-white text-sm font-bold">
-            S
-          </span>
+          <img
+            src="/logo-removebg.png"
+            alt="Soalin"
+            className="h-10 w-10 rounded-full object-cover"
+          />
           <span className="font-semibold tracking-tight">Soalin</span>
         </Link>
 
@@ -49,7 +51,7 @@ export function Header() {
 
           {/* Placeholder dengan tinggi sama supaya gak ada layout shift */}
           {!loaded ? (
-            <span className="inline-block h-8 w-20 rounded-md bg-[#161b22] border border-[#30363d]" />
+            <span className="inline-block h-8 w-20 rounded-full bg-[#161b22] border border-[#30363d]" />
           ) : user ? (
             <HeaderUserMenu
               username={user.username}
@@ -58,7 +60,7 @@ export function Header() {
           ) : (
             <Link
               href="/login"
-              className="px-3 py-1.5 rounded-md border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
+              className="px-3 py-1.5 rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
             >
               Masuk
             </Link>

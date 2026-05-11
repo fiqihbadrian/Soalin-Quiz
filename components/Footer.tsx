@@ -10,7 +10,7 @@ export function Footer() {
             href="https://fiqihbadrian.my.id"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#e6edf3] hover:text-[#2ea043] transition-colors underline-offset-2 hover:underline"
+            className="text-[#e6edf3] hover:text-[#7ba8cc] transition-colors underline-offset-2 hover:underline"
           >
             Fiqih Badrian
           </a>

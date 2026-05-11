@@ -96,7 +96,7 @@ export default function ResultsPage() {
   // Warna persentase berdasarkan skor
   const pctColor =
     percentage >= 80
-      ? "text-[#2ea043]"
+      ? "text-[#7ba8cc]"
       : percentage >= 50
       ? "text-yellow-400"
       : "text-red-400";
@@ -108,7 +108,7 @@ export default function ResultsPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           {/* Ringkasan skor */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded-md p-6 sm:p-8 text-center">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-full p-6 sm:p-8 text-center">
             <p className="text-sm text-[#8b949e] uppercase tracking-wider">
               Skor Kamu
             </p>

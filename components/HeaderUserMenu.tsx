@@ -40,9 +40,9 @@ export function HeaderUserMenu({ username, isAdmin }: HeaderUserMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#238636] text-white text-xs font-bold">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#618eb3] text-white text-xs font-bold">
           {username.charAt(0).toUpperCase()}
         </span>
         <span className="hidden sm:inline">{username}</span>
@@ -57,7 +57,7 @@ export function HeaderUserMenu({ username, isAdmin }: HeaderUserMenuProps) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-[#161b22] border border-[#30363d] rounded-md shadow-lg py-1 z-10">
+        <div className="absolute right-0 top-full mt-2 w-48 bg-[#161b22] border border-[#30363d] rounded-2xl shadow-lg py-1 z-10">
           <div className="px-3 py-2 border-b border-[#30363d]">
             <p className="text-xs text-[#8b949e]">Masuk sebagai</p>
             <p className="text-sm text-[#e6edf3] font-medium truncate">

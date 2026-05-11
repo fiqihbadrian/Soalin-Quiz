@@ -13,8 +13,8 @@ const config: Config = {
         border: "#30363d",
         fg: "#e6edf3",
         muted: "#8b949e",
-        accent: "#238636",
-        "accent-hover": "#2ea043",
+        accent: "#618eb3",
+        "accent-hover": "#7ba8cc",
       },
       fontFamily: {
         sans: [

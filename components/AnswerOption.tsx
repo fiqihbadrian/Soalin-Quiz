@@ -21,11 +21,11 @@ export function AnswerOption({
       onClick={onSelect}
       disabled={disabled}
       className={[
-        "w-full text-left p-4 rounded-md border transition-colors",
-        "focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
+        "w-full text-left p-4 rounded-full border transition-colors",
+        "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
         "disabled:cursor-not-allowed",
         selected
-          ? "bg-[#1f2a1f] border-[#238636]"
+          ? "bg-[#1a2a3a] border-[#618eb3]"
           : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
       ].join(" ")}
       aria-pressed={selected}
@@ -33,9 +33,9 @@ export function AnswerOption({
       <div className="flex items-start gap-3">
         <span
           className={[
-            "flex-shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-semibold border",
+            "flex-shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold border",
             selected
-              ? "bg-[#238636] border-[#238636] text-white"
+              ? "bg-[#618eb3] border-[#618eb3] text-white"
               : "bg-[#0d1117] border-[#30363d] text-[#8b949e]",
           ].join(" ")}
         >

@@ -11,7 +11,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={[
-          "bg-[#161b22] rounded-md",
+          "bg-[#161b22] rounded-2xl",
           error ? "border border-red-500/60" : "border border-[#30363d]",
           padded ? "p-5 sm:p-6" : "",
           className,

@@ -22,10 +22,10 @@ export function SemesterSelector({ value, onChange }: SemesterSelectorProps) {
               type="button"
               onClick={() => onChange(sem.level)}
               className={[
-                "py-2 px-2 text-sm rounded-md border transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#2ea043] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
+                "py-2 px-2 text-sm rounded-full border transition-colors",
+                "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
                 isActive
-                  ? "bg-[#238636] border-[#238636] text-white hover:bg-[#2ea043]"
+                  ? "bg-[#618eb3] border-[#618eb3] text-white hover:bg-[#7ba8cc]"
                   : "bg-[#161b22] border-[#30363d] text-[#e6edf3] hover:border-[#8b949e]",
               ].join(" ")}
               aria-pressed={isActive}

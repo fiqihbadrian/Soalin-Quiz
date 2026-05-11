@@ -36,9 +36,9 @@ export default function RegisterPage() {
                 href="https://fiqihbadrian.my.id"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 rounded-md border border-[#30363d] bg-[#0d1117] hover:border-[#2ea043] transition-colors"
+                className="flex items-center gap-3 p-4 rounded-full border border-[#30363d] bg-[#0d1117] hover:border-[#7ba8cc] transition-colors"
               >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#238636] text-white font-bold">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#618eb3] text-white font-bold">
                   @
                 </span>
                 <div>
@@ -50,12 +50,12 @@ export default function RegisterPage() {
               </a>
             </div>
 
-            <div className="mt-6 p-4 rounded-md bg-[#0d1117] border border-[#30363d]">
+            <div className="mt-6 p-4 rounded-full bg-[#0d1117] border border-[#30363d]">
               <p className="text-sm text-[#8b949e]">
                 <span className="text-[#e6edf3] font-medium">Catatan: </span>
                 Kasih tahu username yang kamu pengenin dan tunggu konfirmasi
                 dari admin. Setelah akun jadi, kamu bisa langsung login di{" "}
-                <Link href="/login" className="text-[#2ea043] hover:underline">
+                <Link href="/login" className="text-[#7ba8cc] hover:underline">
                   halaman login
                 </Link>
                 .
