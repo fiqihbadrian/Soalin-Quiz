@@ -3,8 +3,8 @@ import type { QuizQuestion } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Long-running request: generation can take a while for 20 questions
-export const maxDuration = 60;
+// Long-running request: 20 soal bisa butuh 60-90 detik di model gratis
+export const maxDuration = 120;
 
 const ALLOWED_QUESTION_COUNTS = [5, 10, 15, 20];
 
@@ -91,22 +91,24 @@ Buat ${questionCount} soal.
 
 # FORMAT OUTPUT
 
-Kembalikan HANYA array JSON valid, TANPA teks pembuka/penutup, TANPA markdown fence. Format persis:
+Kembalikan HANYA object JSON valid dengan key "questions" yang berisi array soal. TANPA teks pembuka/penutup, TANPA markdown fence. Format persis:
 
-[
-  {
-    "id": 1,
-    "question": "Teks soal yang jelas, self-contained, dan bisa dijawab tanpa melihat dokumen apapun?",
-    "options": {
-      "A": "Pilihan A",
-      "B": "Pilihan B",
-      "C": "Pilihan C",
-      "D": "Pilihan D"
-    },
-    "correct": "B",
-    "explanation": "Penjelasan konsep langsung, tanpa merujuk ke materi/PDF/pertemuan/halaman."
-  }
-]`;
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "Teks soal yang jelas, self-contained, dan bisa dijawab tanpa melihat dokumen apapun?",
+      "options": {
+        "A": "Pilihan A",
+        "B": "Pilihan B",
+        "C": "Pilihan C",
+        "D": "Pilihan D"
+      },
+      "correct": "B",
+      "explanation": "Penjelasan konsep langsung, tanpa merujuk ke materi/PDF/pertemuan/halaman."
+    }
+  ]
+}`;
 }
 
 function buildStrictRules(): string {
@@ -209,20 +211,30 @@ function cleanPdfText(raw: string): string {
 }
 
 /**
- * Extract a JSON array from the model's text response. The model is instructed
- * to return raw JSON, but we defensively strip markdown fences if present.
+ * Extract a JSON array from the model's text response.
+ *
+ * Strategi bertingkat:
+ * 1. Strip markdown fence (```json ... ```)
+ * 2. Kalau JSON diapit object wrapper ({"questions":[...]}) → ambil array-nya
+ * 3. Cari blok [...] pertama yang valid
+ * 4. Fallback: return as-is
  */
 function extractJsonArray(raw: string): string {
-  const trimmed = raw.trim();
+  let trimmed = raw.trim();
 
-  // Strip ```json ... ``` or ``` ... ``` fences if present
+  // Strip markdown fence jika ada
   const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  if (fenceMatch) return fenceMatch[1].trim();
+  if (fenceMatch) trimmed = fenceMatch[1].trim();
 
-  // If response starts directly with [, use as-is
+  // Kadang model bungkus dalam object: {"questions": [...]}
+  // Kita ambil array-nya saja
+  const objMatch = trimmed.match(/"questions"\s*:\s*(\[[\s\S]*\])/);
+  if (objMatch) return objMatch[1];
+
+  // Langsung array
   if (trimmed.startsWith("[")) return trimmed;
 
-  // Try to extract the first [...] block
+  // Cari [...] terbesar di string
   const start = trimmed.indexOf("[");
   const end = trimmed.lastIndexOf("]");
   if (start !== -1 && end !== -1 && end > start) {
@@ -232,25 +244,129 @@ function extractJsonArray(raw: string): string {
   return trimmed;
 }
 
+/**
+ * Parse JSON array dengan auto-recovery kalau malformed.
+ *
+ * Kalau JSON.parse gagal, coba ekstrak individual question objects
+ * pakai brace-matching. Ini handle kasus:
+ * - Response ke-cut di tengah (missing closing bracket)
+ * - 1-2 soal rusak format, tapi sisanya OK
+ * - Trailing garbage setelah array
+ * - Trailing comma (sering di LLM output)
+ */
+function parseQuestionsWithRecovery(jsonStr: string): unknown[] {
+  // Coba parse langsung dulu
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // lanjut ke recovery
+  }
+
+  // Coba fix trailing comma (umum di LLM output)
+  try {
+    const fixed = jsonStr
+      .replace(/,\s*]/g, "]")
+      .replace(/,\s*}/g, "}");
+    const parsed = JSON.parse(fixed);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // lanjut ke recovery
+  }
+
+  // Recovery mode: ekstrak tiap object {...} pakai brace matching
+  const objects: unknown[] = [];
+  const text = jsonStr;
+  let i = 0;
+
+  while (i < text.length) {
+    const start = text.indexOf("{", i);
+    if (start === -1) break;
+
+    // Cari matching closing brace dengan respect terhadap string & escape
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let end = -1;
+
+    for (let j = start; j < text.length; j++) {
+      const ch = text[j];
+
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          end = j;
+          break;
+        }
+      }
+    }
+
+    if (end === -1) {
+      // Object yang belum selesai (ke-cut di akhir) — skip
+      break;
+    }
+
+    const objStr = text.slice(start, end + 1);
+    try {
+      const obj = JSON.parse(objStr);
+      if (obj && typeof obj === "object") {
+        objects.push(obj);
+      }
+    } catch {
+      // Object rusak → lanjut cari yang berikutnya
+      try {
+        // Coba dengan trailing comma fix
+        const fixed = objStr.replace(/,\s*}/g, "}");
+        const obj = JSON.parse(fixed);
+        if (obj && typeof obj === "object") objects.push(obj);
+      } catch {
+        // skip
+      }
+    }
+
+    i = end + 1;
+  }
+
+  return objects;
+}
+
+/**
+ * Validasi array of unknowns jadi QuizQuestion[].
+ * Mode lenient: skip soal yang invalid, jangan throw. Return hanya yang valid.
+ */
 function validateQuestions(input: unknown): QuizQuestion[] {
   if (!Array.isArray(input)) {
-    throw new Error("Respons bukan berupa array.");
+    return [];
   }
 
   const validated: QuizQuestion[] = [];
 
   input.forEach((item, idx) => {
-    if (!item || typeof item !== "object") {
-      throw new Error(`Soal ${idx + 1} bukan berupa objek.`);
-    }
+    if (!item || typeof item !== "object") return;
     const q = item as Record<string, unknown>;
 
-    const question = typeof q.question === "string" ? q.question : null;
+    const question = typeof q.question === "string" ? q.question.trim() : null;
     const options = q.options as Record<string, string> | undefined;
-    const correct = typeof q.correct === "string" ? q.correct.toUpperCase() : null;
-    const explanation = typeof q.explanation === "string" ? q.explanation : "";
+    const correctRaw = typeof q.correct === "string" ? q.correct.trim().toUpperCase() : null;
+    const explanation =
+      typeof q.explanation === "string" ? q.explanation.trim() : "";
 
-    if (!question) throw new Error(`Soal ${idx + 1} tidak memiliki teks 'question'.`);
+    if (!question) return;
     if (
       !options ||
       typeof options.A !== "string" ||
@@ -258,20 +374,21 @@ function validateQuestions(input: unknown): QuizQuestion[] {
       typeof options.C !== "string" ||
       typeof options.D !== "string"
     ) {
-      throw new Error(`Soal ${idx + 1} tidak memiliki pilihan A–D yang valid.`);
+      return;
     }
-    if (!correct || !["A", "B", "C", "D"].includes(correct)) {
-      throw new Error(`Soal ${idx + 1} memiliki jawaban 'correct' yang tidak valid.`);
-    }
+
+    // Kadang model kasih "A." atau "A)" — normalize ke "A"
+    const correct = correctRaw?.charAt(0);
+    if (!correct || !["A", "B", "C", "D"].includes(correct)) return;
 
     validated.push({
       id: typeof q.id === "number" ? q.id : idx + 1,
       question,
       options: {
-        A: options.A,
-        B: options.B,
-        C: options.C,
-        D: options.D,
+        A: options.A.trim(),
+        B: options.B.trim(),
+        C: options.C.trim(),
+        D: options.D.trim(),
       },
       correct: correct as "A" | "B" | "C" | "D",
       explanation,
@@ -397,10 +514,14 @@ PENGINGAT PENTING:
 - DILARANG soal yang bilang "di pertemuan X", "pada halaman", "di materi", "dari data yang diberikan", atau rujukan ke dokumen dalam bentuk apapun.
 - Ambil KONSEP dari PDF, tulis ulang jadi soal pengetahuan umum.
 - Semua output dalam Bahasa Indonesia.
-- Kembalikan HANYA array JSON, tanpa teks lain.
+- Kembalikan HANYA object JSON dengan key "questions", tanpa teks lain.
 - Variasikan posisi jawaban benar (A, B, C, D).
 
 Mulai output JSON-nya sekarang:`;
+
+    // Scale max_tokens berdasarkan jumlah soal:
+    // ~500 token per soal (q + 4 pilihan + explanation + overhead), plus buffer
+    const maxTokens = Math.max(3000, countNum * 600);
 
     // OpenRouter uses an OpenAI-compatible chat completions endpoint
     const orResponse = await fetch(
@@ -421,11 +542,14 @@ Mulai output JSON-nya sekarang:`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
           ],
-          max_tokens: 8000,
+          max_tokens: maxTokens,
           // Temperature: 0.3 untuk strict (akurat, patuh ke sumber),
           // 0.5 untuk supplement (butuh sedikit keleluasaan mengembangkan soal)
           temperature: supplement ? 0.5 : 0.3,
           frequency_penalty: 0.3,
+          // Minta output JSON-formatted kalau model support
+          // (Gemini, GPT-4o, Claude Sonnet mendukung ini)
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -458,26 +582,30 @@ Mulai output JSON-nya sekarang:`;
 
     const jsonStr = extractJsonArray(raw);
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch (err) {
-      console.error("JSON parse error:", err, "\nRaw:", raw.slice(0, 500));
+    // Pakai recovery parser — handle JSON ke-cut, trailing comma, dll
+    const parsedObjects = parseQuestionsWithRecovery(jsonStr);
+
+    if (parsedObjects.length === 0) {
+      console.error("Recovery parser gagal. Raw:", raw.slice(0, 800));
       return NextResponse.json(
-        { error: "Respons AI bukan JSON yang valid. Silakan coba lagi." },
+        {
+          error:
+            "Respons AI tidak bisa di-parse. Coba lagi atau kurangi jumlah soal.",
+        },
         { status: 502 }
       );
     }
 
-    let questions: QuizQuestion[];
-    try {
-      questions = validateQuestions(parsed);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Format soal tidak valid.";
-      console.error("Validation error:", message);
+    // Validasi lenient — skip soal yang rusak, ambil yang valid
+    let questions = validateQuestions(parsedObjects);
+
+    if (questions.length === 0) {
+      console.error("Semua soal gagal validasi. Raw:", raw.slice(0, 800));
       return NextResponse.json(
-        { error: `Respons AI tidak sesuai format: ${message}` },
+        {
+          error:
+            "AI mengembalikan soal tapi formatnya tidak valid. Coba lagi.",
+        },
         { status: 502 }
       );
     }
