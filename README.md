@@ -6,28 +6,6 @@ Live demo: https://soalin.fiqihbadrian.my.id/
 
 Dokumen ini dibuat khusus untuk kebutuhan preview project. Repository ini tidak menyertakan source code publik.
 
-## Live Preview (Gambar)
-
-### Desktop - 1440x900
-
-![Soalin Desktop Preview](images/preview-desktop-1440x900.png)
-
-### Laptop - 1280x720
-
-![Soalin Laptop Preview](images/preview-laptop-1280x720.png)
-
-### Tablet - 834x1112
-
-![Soalin Tablet Preview](images/preview-tablet-834x1112.png)
-
-### Mobile - 390x844
-
-![Soalin Mobile Preview](images/preview-mobile-390x844.png)
-
-### Mobile Small - 360x640
-
-![Soalin Mobile Small Preview](images/preview-mobile-small-360x640.png)
-
 ## Tentang Project
 
 Soalin membantu pengguna belajar lebih cepat dengan cara mengubah materi kuliah (PDF) menjadi kuis pilihan ganda secara otomatis.
@@ -91,3 +69,10 @@ Project by Fiqih Badrian
 
 - Website: https://fiqihbadrian.my.id
 - Demo app: https://soalin.fiqihbadrian.my.id/
+
+
+
+## Live Preview (Gambar)
+    
+![Soalin Desktop Preview](images/dekstop.png)
+
