@@ -73,6 +73,7 @@ Project by Fiqih Badrian
 
 
 ## Live Preview (Gambar)
-    
-![Soalin Desktop Preview](images/dekstop.png)
 
+![Soalin Desktop Preview](images/dekstop.png)
+![login](images/login.png)
+![upload](images/upload.png)
