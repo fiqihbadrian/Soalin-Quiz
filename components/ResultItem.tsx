@@ -74,7 +74,7 @@ export function ResultItem({ index, question, userAnswer }: ResultItemProps) {
         })}
       </ul>
 
-      <div className="mt-4 p-3 rounded-full bg-[#0d1117] border border-[#30363d]">
+      <div className="mt-4 p-3 rounded-2xl bg-[#0d1117] border border-[#30363d]">
         <p className="text-sm text-[#8b949e]">
           <span className="text-[#e6edf3] font-medium">Penjelasan: </span>
           {question.explanation}
