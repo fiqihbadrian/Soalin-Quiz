@@ -17,7 +17,7 @@ export function QuestionCard({
   const keys: OptionKey[] = ["A", "B", "C", "D"];
 
   return (
-    <div className="bg-[#161b22] border border-[#30363d] rounded-full p-5 sm:p-6">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-5 sm:p-6">
       <h2 className="text-lg sm:text-xl text-[#e6edf3] leading-relaxed">
         {question.question}
       </h2>
