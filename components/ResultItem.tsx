@@ -11,7 +11,7 @@ export function ResultItem({ index, question, userAnswer }: ResultItemProps) {
   const isCorrect = userAnswer === question.correct;
 
   return (
-    <div className="bg-[#161b22] border border-[#30363d] rounded-full p-5">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-5">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-[#e6edf3] font-medium leading-relaxed">
           <span className="text-[#8b949e] mr-2">Q{index + 1}.</span>
