@@ -77,3 +77,6 @@ Project by Fiqih Badrian
 ![Soalin Desktop Preview](images/dekstop.png)
 ![login](images/login.png)
 ![upload](images/upload.png)
+---
+
+*Last updated: May 17, 2026*
