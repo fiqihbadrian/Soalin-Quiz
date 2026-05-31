@@ -79,4 +79,4 @@ Project by Fiqih Badrian
 ![upload](images/upload.png)
 ---
 
-******Last updated: May 28, 2026 at 09:31*
+*******Last updated: June 01, 2026 at 02:52*
