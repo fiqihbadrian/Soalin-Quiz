@@ -7,3 +7,4 @@ All notable changes to this project preview will be documented here.
 - Preview improvements
 - 2026-05-23 16:31: Documentation review and updates
 - 2026-06-05 13:57: Documentation review and updates
+- 2026-06-07 14:54: Documentation review and updates
