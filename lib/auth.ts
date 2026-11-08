@@ -185,9 +185,11 @@ export async function createUser(
     .single();
 
   if (error || !data) {
+    // Galat Supabase bisa memuat detail koneksi, jadi hanya dicatat di server
+    console.error("createUser gagal:", error?.message || "tidak ada data");
     return {
       ok: false,
-      error: error?.message || "Gagal membuat user.",
+      error: "Pendaftaran gagal disimpan. Coba lagi atau hubungi admin.",
     };
   }
 

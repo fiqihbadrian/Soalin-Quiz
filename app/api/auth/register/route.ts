@@ -86,21 +86,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await createUser(cleanUsername, password);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+  try {
+    const result = await createUser(cleanUsername, password);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    // Langsung masuk setelah akun dibuat, tidak perlu mengetik ulang
+    const token = await createSessionToken({
+      sub: result.user.id,
+      username: result.user.username,
+      role: "user",
+    });
+    await setSessionCookie(token);
+
+    return NextResponse.json({
+      ok: true,
+      user: { username: result.user.username, role: result.user.role },
+    });
+  } catch (err) {
+    console.error("register error:", err);
+    return NextResponse.json(
+      { error: "Pendaftaran gagal. Coba lagi beberapa saat lagi." },
+      { status: 500 }
+    );
   }
-
-  // Langsung masuk setelah akun dibuat, tidak perlu mengetik ulang
-  const token = await createSessionToken({
-    sub: result.user.id,
-    username: result.user.username,
-    role: "user",
-  });
-  await setSessionCookie(token);
-
-  return NextResponse.json({
-    ok: true,
-    user: { username: result.user.username, role: result.user.role },
-  });
 }

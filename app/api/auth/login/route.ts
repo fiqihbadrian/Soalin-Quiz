@@ -93,8 +93,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("login error:", err);
-    const message =
-      err instanceof Error ? err.message : "Terjadi kesalahan.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Jangan kirim pesan galat mentah ke klien
+    return NextResponse.json(
+      { error: "Terjadi kesalahan di server. Coba lagi." },
+      { status: 500 }
+    );
   }
 }
