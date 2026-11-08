@@ -3,11 +3,11 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 /**
  * Dua jenis Supabase client:
  *
- * 1. Anon client (`getSupabase`) — pakai NEXT_PUBLIC_SUPABASE_ANON_KEY.
+ * 1. Anon client (`getSupabase`), pakai NEXT_PUBLIC_SUPABASE_ANON_KEY.
  *    Dipakai untuk operasi yang aman di-expose ke client (ex: insert skor).
  *    Terkena aturan RLS.
  *
- * 2. Admin/service-role client (`getSupabaseAdmin`) — pakai SUPABASE_SERVICE_ROLE_KEY.
+ * 2. Admin/service-role client (`getSupabaseAdmin`), pakai SUPABASE_SERVICE_ROLE_KEY.
  *    HANYA dipakai di server-side route untuk operasi privileged
  *    (manajemen user, read password_hash, dll). Bypass RLS.
  *    JANGAN PERNAH expose ke client.
@@ -48,7 +48,7 @@ export function getSupabaseAdmin(): SupabaseClient | null {
 
   if (!serviceKey) {
     console.warn(
-      "SUPABASE_SERVICE_ROLE_KEY belum di-set — operasi admin akan gagal kalau RLS aktif."
+      "SUPABASE_SERVICE_ROLE_KEY belum di-set, operasi admin akan gagal kalau RLS aktif."
     );
     // Fallback ke anon supaya tidak crash, tapi bakal error kalau RLS enabled
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

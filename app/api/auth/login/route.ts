@@ -5,12 +5,25 @@ import {
   setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    // 10 percobaan masuk per 10 menit per alamat, cukup untuk salah ketik
+    const limit = await rateLimit(`soalin:masuk:${clientIp(req)}`, 10, 600);
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan masuk. Tunggu beberapa menit." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfter) },
+        }
+      );
+    }
+
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Body tidak valid." }, { status: 400 });

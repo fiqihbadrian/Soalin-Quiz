@@ -14,7 +14,7 @@ interface UseCurrentUserResult {
 
 /**
  * Hook untuk dapetin user yang lagi login (dari /api/auth/me).
- * Loading state awal `true` — komponen sebaiknya tunggu `!loading` sebelum render.
+ * Loading state awal `true`, komponen sebaiknya tunggu `!loading` sebelum render.
  */
 export function useCurrentUser(): UseCurrentUserResult {
   const [user, setUser] = useState<CurrentUser | null>(null);

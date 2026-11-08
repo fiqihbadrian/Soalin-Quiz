@@ -2,6 +2,13 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "./supabase";
+import {
+  localCreateUser,
+  localDeleteUser,
+  localFindUser,
+  localListUsers,
+  isLocalAuthEnabled,
+} from "./localUsers";
 
 const COOKIE_NAME = "soalin_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 hari
@@ -56,7 +63,8 @@ export async function verifySessionToken(
 
 // Set session cookie (httpOnly, secure di prod)
 export async function setSessionCookie(token: string) {
-  cookies().set(COOKIE_NAME, token, {
+  const cookieStore = await cookies();
+  cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -67,7 +75,8 @@ export async function setSessionCookie(token: string) {
 
 // Hapus session cookie
 export async function clearSessionCookie() {
-  cookies().set(COOKIE_NAME, "", {
+  const cookieStore = await cookies();
+  cookieStore.set(COOKIE_NAME, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -78,7 +87,8 @@ export async function clearSessionCookie() {
 
 // Ambil session dari cookie (server-side)
 export async function getSession(): Promise<SessionPayload | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
 }
@@ -114,6 +124,8 @@ export interface DbUser {
 export async function findUserByUsername(
   username: string
 ): Promise<DbUser | null> {
+  if (isLocalAuthEnabled()) return localFindUser(username);
+
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
@@ -127,13 +139,14 @@ export async function findUserByUsername(
   return data as DbUser;
 }
 
-// Buat user baru — dipakai admin panel
+// Buat user baru, dipakai admin panel
 export async function createUser(
   username: string,
   plainPassword: string
 ): Promise<{ ok: true; user: DbUser } | { ok: false; error: string }> {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
+  const local = isLocalAuthEnabled();
+  const supabase = local ? null : getSupabaseAdmin();
+  if (!local && !supabase) {
     return { ok: false, error: "Supabase belum dikonfigurasi." };
   }
 
@@ -156,7 +169,12 @@ export async function createUser(
 
   const password_hash = await hashPassword(plainPassword);
 
-  const { data, error } = await supabase
+  if (local) {
+    const user = await localCreateUser(cleanUsername, password_hash);
+    return { ok: true, user };
+  }
+
+  const { data, error } = await supabase!
     .from("users")
     .insert({
       username: cleanUsername,
@@ -178,6 +196,8 @@ export async function createUser(
 
 // Ambil semua user (admin only)
 export async function listUsers(): Promise<DbUser[]> {
+  if (isLocalAuthEnabled()) return localListUsers();
+
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
 
@@ -192,6 +212,8 @@ export async function listUsers(): Promise<DbUser[]> {
 
 // Hapus user by id (admin only)
 export async function deleteUser(id: string): Promise<boolean> {
+  if (isLocalAuthEnabled()) return localDeleteUser(id);
+
   const supabase = getSupabaseAdmin();
   if (!supabase) return false;
 

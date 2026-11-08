@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 import { saveQuizSession } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -6,6 +8,26 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Belum login." }, { status: 401 });
+    }
+
+    const limit = await rateLimit(
+      `soalin:simpan:${session.sub}`,
+      30,
+      600
+    );
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Terlalu banyak penyimpanan. Coba lagi nanti." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfter) },
+        }
+      );
+    }
+
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Body tidak valid." }, { status: 400 });

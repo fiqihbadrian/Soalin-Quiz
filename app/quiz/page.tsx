@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -10,6 +10,7 @@ import { QuestionCard } from "@/components/QuestionCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { useQuizStore } from "@/store/quizStore";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useHydrated } from "@/lib/useHydrated";
 import type { OptionKey } from "@/lib/types";
 
 export default function QuizPage() {
@@ -24,31 +25,24 @@ export default function QuizPage() {
     setAnswer,
     nextQuestion,
     previousQuestion,
+    setCurrentQuestion,
     completeQuiz,
   } = useQuizStore();
 
-  // Hydration guard — tunggu localStorage ke-load sebelum render/redirect
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  // Tunggu localStorage dibaca sebelum render atau redirect
+  const hydrated = useHydrated();
 
-  // Sync owner dengan user yang sekarang login
   useEffect(() => {
-    if (!userLoading && user) {
-      ensureOwner(user.username);
-    }
+    if (!userLoading && user) ensureOwner(user.username);
   }, [user, userLoading, ensureOwner]);
 
-  // Kalau user masuk tanpa ada soal (dan state udah hydrated), redirect ke upload
   useEffect(() => {
     if (hydrated && questions.length === 0) {
       router.replace("/upload");
     }
   }, [hydrated, questions.length, router]);
 
-  // Pas pertama kali load dengan state yang udah ada, jump ke soal pertama
-  // yang belum dijawab (biar user gak bingung harus mulai dari mana)
+  // Lanjutkan dari soal pertama yang belum dijawab
   const jumpedRef = useRef(false);
   useEffect(() => {
     if (!hydrated || jumpedRef.current) return;
@@ -61,16 +55,14 @@ export default function QuizPage() {
       }
     }
     jumpedRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
+  }, [hydrated, questions, userAnswers]);
 
-  // Tunggu hydration supaya gak salah redirect sebelum localStorage ke-load
-  if (!hydrated || (hydrated && questions.length === 0)) {
+  if (!hydrated || questions.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4">
-          <Spinner label={!hydrated ? "Memuat kuis..." : "Mengalihkan..."} />
+        <main className="flex flex-1 items-center justify-center px-4">
+          <Spinner label={!hydrated ? "Memuat kuis" : "Mengalihkan ke unggah"} />
         </main>
       </div>
     );
@@ -80,6 +72,7 @@ export default function QuizPage() {
   const selected = userAnswers[current.id];
   const isLast = currentQuestion === questions.length - 1;
   const isFirst = currentQuestion === 0;
+  const answeredCount = Object.keys(userAnswers).length;
 
   const onSelect = (key: OptionKey) => setAnswer(current.id, key);
 
@@ -93,38 +86,40 @@ export default function QuizPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-[#8b949e]">
-              Soal{" "}
-              <span className="text-[#e6edf3] font-medium">
-                {currentQuestion + 1}
-              </span>{" "}
-              dari{" "}
-              <span className="text-[#e6edf3] font-medium">
-                {questions.length}
-              </span>
-            </p>
-            <p className="text-xs text-[#8b949e]">
-              {Object.keys(userAnswers).length} dijawab
-            </p>
-          </div>
+        <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
+          <div className="mb-6 flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-4">
+              <p className="text-sm text-ink">
+                Soal{" "}
+                <span className="font-mono tabular">
+                  {currentQuestion + 1}/{questions.length}
+                </span>
+              </p>
+              <p className="font-mono text-xs tabular text-ink-muted">
+                {answeredCount} terjawab
+              </p>
+            </div>
 
-          <ProgressBar value={currentQuestion + 1} max={questions.length} />
-
-          <div className="mt-8">
-            <QuestionCard
-              question={current}
-              selected={selected}
-              onSelect={onSelect}
+            <ProgressBar
+              current={answeredCount}
+              total={questions.length}
+              label="Soal terjawab"
             />
           </div>
 
-          <div className="mt-6 flex items-center justify-between">
+          <QuestionCard
+            question={current}
+            index={currentQuestion}
+            total={questions.length}
+            selected={selected}
+            onSelect={onSelect}
+          />
+
+          <div className="mt-5 flex items-center justify-between gap-3">
             <Button
               variant="secondary"
               onClick={previousQuestion}
@@ -134,9 +129,41 @@ export default function QuizPage() {
             </Button>
 
             <Button onClick={onNext} disabled={!selected}>
-              {isLast ? "Selesai" : "Selanjutnya"}
+              {isLast ? "Lihat hasil" : "Selanjutnya"}
             </Button>
           </div>
+
+          <nav aria-label="Pindah soal" className="mt-8 border-t border-rule pt-4">
+            <p className="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-ink-muted">
+              Lompat ke soal
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {questions.map((question, index) => {
+                const answered = Boolean(userAnswers[question.id]);
+                const active = index === currentQuestion;
+                return (
+                  <button
+                    key={question.id}
+                    type="button"
+                    onClick={() => setCurrentQuestion(index)}
+                    aria-current={active ? "step" : undefined}
+                    aria-label={`Soal ${index + 1}${
+                      answered ? ", sudah dijawab" : ", belum dijawab"
+                    }`}
+                    className={`inline-flex h-11 w-11 items-center justify-center rounded-[4px] border font-mono text-xs tabular transition-colors ${
+                      active
+                        ? "border-ink bg-ink text-paper"
+                        : answered
+                          ? "border-accent/50 bg-accent-soft text-accent"
+                          : "border-rule text-ink-muted hover:border-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
         </div>
       </main>
 

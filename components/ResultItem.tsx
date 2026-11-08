@@ -1,85 +1,69 @@
+"use client";
+
+import { AnswerOption } from "./AnswerOption";
 import type { OptionKey, QuizQuestion } from "@/lib/types";
 
-interface ResultItemProps {
-  index: number;
-  question: QuizQuestion;
-  userAnswer?: string;
-}
+const OPTION_KEYS: OptionKey[] = ["A", "B", "C", "D"];
 
-export function ResultItem({ index, question, userAnswer }: ResultItemProps) {
-  const keys: OptionKey[] = ["A", "B", "C", "D"];
-  const isCorrect = userAnswer === question.correct;
+export function ResultItem({
+  question,
+  index,
+  answer,
+}: {
+  question: QuizQuestion;
+  index: number;
+  answer: string | undefined;
+}) {
+  const isCorrect = answer === question.correct;
 
   return (
-    <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[#e6edf3] font-medium leading-relaxed">
-          <span className="text-[#8b949e] mr-2">Q{index + 1}.</span>
-          {question.question}
-        </h3>
+    <article className="border-t border-rule px-5 py-5 first:border-t-0">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span className="chapter-label">Soal {index + 1}</span>
         <span
-          className={[
-            "flex-shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-full text-sm font-bold",
+          className={`rounded-[4px] border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] ${
             isCorrect
-              ? "bg-[#1a2a3a] text-[#7ba8cc] border border-[#618eb3]"
-              : "bg-[#2d1a1a] text-red-400 border border-red-500/60",
-          ].join(" ")}
-          aria-label={isCorrect ? "Benar" : "Salah"}
+              ? "border-accent/40 bg-accent-soft text-accent"
+              : "border-danger/40 bg-danger-soft text-danger"
+          }`}
         >
-          {isCorrect ? "✓" : "✗"}
+          {isCorrect ? "benar" : answer ? "salah" : "tidak dijawab"}
         </span>
-      </div>
+      </header>
 
-      <ul className="mt-4 space-y-2">
-        {keys.map((k) => {
-          const isUserPick = userAnswer === k;
-          const isCorrectKey = question.correct === k;
+      <h3 className="text-[15px] font-medium leading-relaxed text-ink">
+        {question.question}
+      </h3>
 
-          let containerClass = "border-[#30363d] bg-[#0d1117]";
-          if (isCorrectKey) {
-            containerClass = "border-[#618eb3] bg-[#1a2a3a]";
-          } else if (isUserPick && !isCorrectKey) {
-            containerClass = "border-red-500/60 bg-[#2d1a1a]";
-          }
-
+      <div className="mt-3 flex flex-col gap-1.5">
+        {OPTION_KEYS.map((letter) => {
+          const reviewState =
+            letter === question.correct
+              ? ("correct" as const)
+              : letter === answer
+                ? ("wrong" as const)
+                : ("muted" as const);
           return (
-            <li
-              key={k}
-              className={[
-                "flex items-start gap-3 p-3 rounded-full border text-sm",
-                containerClass,
-              ].join(" ")}
-            >
-              <span
-                className={[
-                  "flex-shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold border",
-                  isCorrectKey
-                    ? "bg-[#618eb3] border-[#618eb3] text-white"
-                    : isUserPick
-                    ? "bg-red-600 border-red-600 text-white"
-                    : "bg-[#161b22] border-[#30363d] text-[#8b949e]",
-                ].join(" ")}
-              >
-                {k}
-              </span>
-              <span className="text-[#e6edf3] flex-1">{question.options[k]}</span>
-              {isUserPick ? (
-                <span className="text-xs text-[#8b949e]">jawabanmu</span>
-              ) : null}
-              {isCorrectKey && !isUserPick ? (
-                <span className="text-xs text-[#7ba8cc]">benar</span>
-              ) : null}
-            </li>
+            <AnswerOption
+              key={letter}
+              questionId={question.id}
+              letter={letter}
+              text={question.options[letter]}
+              selected={letter === answer}
+              reviewState={reviewState}
+            />
           );
         })}
-      </ul>
+      </div>
 
-      <div className="mt-4 p-3 rounded-2xl bg-[#0d1117] border border-[#30363d]">
-        <p className="text-sm text-[#8b949e]">
-          <span className="text-[#e6edf3] font-medium">Penjelasan: </span>
+      <div className="mt-3 border-l-2 border-rule pl-3">
+        <p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+          Pembahasan
+        </p>
+        <p className="text-sm leading-relaxed text-ink-muted">
           {question.explanation}
         </p>
       </div>
-    </div>
+    </article>
   );
 }

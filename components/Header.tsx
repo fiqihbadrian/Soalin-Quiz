@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HeaderUserMenu } from "./HeaderUserMenu";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface SessionUser {
   username: string;
@@ -14,44 +16,56 @@ export function Header() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    // Ambil session dari server — non-blocking, gak bikin flash
+    let cancelled = false;
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((data) => {
-        setUser(data.user ?? null);
+      .then((data: { user: SessionUser | null }) => {
+        if (!cancelled) setUser(data.user ?? null);
       })
       .catch(() => {
-        setUser(null);
+        if (!cancelled) setUser(null);
       })
-      .finally(() => setLoaded(true));
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
-    <header className="border-b border-[#30363d] bg-[#0d1117]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <header className="border-b border-rule">
+      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 text-[#e6edf3] hover:text-white transition-colors"
+          className="inline-flex min-h-11 items-center gap-2.5 text-ink transition-opacity hover:opacity-80"
         >
-          <img
+          <Image
             src="/logo-removebg.png"
-            alt="Soalin"
-            className="h-10 w-10 rounded-full object-cover"
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-[4px]"
+            fetchPriority="high"
           />
-          <span className="font-semibold tracking-tight">Soalin</span>
+          <span className="text-[15px] font-semibold tracking-[-0.01em]">
+            Soalin
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-4 text-sm">
+        <nav aria-label="Navigasi utama" className="flex items-center gap-2">
           <Link
             href="/"
-            className="text-[#8b949e] hover:text-[#e6edf3] transition-colors"
+            className="inline-flex min-h-11 items-center rounded-[10px] px-2.5 text-sm text-ink-muted transition-colors hover:bg-surface-strong hover:text-ink"
           >
             Beranda
           </Link>
 
-          {/* Placeholder dengan tinggi sama supaya gak ada layout shift */}
           {!loaded ? (
-            <span className="inline-block h-8 w-20 rounded-full bg-[#161b22] border border-[#30363d]" />
+            <span
+              aria-hidden="true"
+              className="inline-block h-11 w-20 rounded-[10px] border border-rule bg-surface"
+            />
           ) : user ? (
             <HeaderUserMenu
               username={user.username}
@@ -60,11 +74,13 @@ export function Header() {
           ) : (
             <Link
               href="/login"
-              className="px-3 py-1.5 rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
+              className="inline-flex min-h-11 items-center rounded-[10px] border border-rule bg-surface px-3 text-sm font-medium text-ink transition-colors hover:border-ink-muted"
             >
               Masuk
             </Link>
           )}
+
+          <ThemeToggle />
         </nav>
       </div>
     </header>

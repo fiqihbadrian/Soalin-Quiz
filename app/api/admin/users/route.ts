@@ -12,7 +12,7 @@ async function requireAdmin() {
   return session;
 }
 
-// GET /api/admin/users — list semua user
+// GET /api/admin/users: daftar semua user
 export async function GET() {
   const session = await requireAdmin();
   if (!session) {
@@ -31,7 +31,7 @@ export async function GET() {
   return NextResponse.json({ users: safe });
 }
 
-// POST /api/admin/users — buat user baru
+// POST /api/admin/users: buat user baru
 export async function POST(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) {

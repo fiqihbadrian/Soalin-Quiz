@@ -39,7 +39,7 @@ interface QuizState {
   resetAll: () => void;
 }
 
-// Default state — dipakai juga buat reset setelah ganti user
+// Default state, dipakai juga buat reset setelah ganti user
 const initialState = {
   ownerUsername: null as string | null,
   pdfText: "",
@@ -127,7 +127,7 @@ export const useQuizStore = create<QuizState>()(
     {
       name: "soalin-state",
       version: 2,
-      // localStorage — persist walau tab ditutup / logout / refresh
+      // localStorage: persist walau tab ditutup, logout, atau refresh
       storage: createJSONStorage(() =>
         typeof window !== "undefined"
           ? window.localStorage

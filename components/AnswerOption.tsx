@@ -1,48 +1,96 @@
 "use client";
 
+import type { OptionKey } from "@/lib/types";
+
+type ReviewState = "correct" | "wrong" | "muted" | undefined;
+
 interface AnswerOptionProps {
-  optionKey: string;
+  questionId: number;
+  letter: OptionKey;
   text: string;
   selected: boolean;
-  onSelect: () => void;
+  onSelect?: (letter: OptionKey) => void;
+  reviewState?: ReviewState;
   disabled?: boolean;
 }
 
+const borderByState: Record<"correct" | "wrong" | "muted", string> = {
+  correct: "border-accent bg-accent-soft",
+  wrong: "border-danger bg-danger-soft",
+  muted: "border-rule bg-surface",
+};
+
 export function AnswerOption({
-  optionKey,
+  questionId,
+  letter,
   text,
   selected,
   onSelect,
+  reviewState,
   disabled = false,
 }: AnswerOptionProps) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={disabled}
-      className={[
-        "w-full text-left p-4 rounded-full border transition-colors",
-        "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
-        "disabled:cursor-not-allowed",
-        selected
-          ? "bg-[#1a2a3a] border-[#618eb3]"
-          : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
-      ].join(" ")}
-      aria-pressed={selected}
-    >
-      <div className="flex items-start gap-3">
-        <span
-          className={[
-            "flex-shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold border",
-            selected
-              ? "bg-[#618eb3] border-[#618eb3] text-white"
-              : "bg-[#0d1117] border-[#30363d] text-[#8b949e]",
-          ].join(" ")}
-        >
-          {optionKey}
+  const interactive = typeof onSelect === "function" && !disabled;
+
+  const shell = [
+    "flex w-full items-start gap-3 rounded-[10px] border px-3 py-3 text-left text-sm",
+    "transition-colors",
+  ].join(" ");
+
+  const look = reviewState
+    ? borderByState[reviewState]
+    : selected
+      ? "border-accent bg-accent-soft"
+      : interactive
+        ? "border-rule bg-paper hover:border-ink-muted"
+        : "border-rule bg-paper";
+
+  const letterLook = reviewState
+    ? reviewState === "correct"
+      ? "border-accent bg-accent text-accent-fg"
+      : reviewState === "wrong"
+        ? "border-danger bg-danger text-paper dark:text-surface"
+        : "border-rule text-ink-muted"
+    : selected
+      ? "border-accent bg-accent text-accent-fg"
+      : "border-rule text-ink-muted";
+
+  const content = (
+    <>
+      <span
+        aria-hidden="true"
+        className={`mt-px inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border font-mono text-xs font-semibold ${letterLook}`}
+      >
+        {letter}
+      </span>
+      <span className="flex-1 text-ink">{text}</span>
+      {reviewState === "correct" ? (
+        <span className="mt-px font-mono text-[10px] uppercase tracking-[0.08em] text-accent">
+          benar
         </span>
-        <span className="text-[#e6edf3] leading-relaxed">{text}</span>
-      </div>
-    </button>
+      ) : null}
+      {reviewState === "wrong" ? (
+        <span className="mt-px font-mono text-[10px] uppercase tracking-[0.08em] text-danger">
+          jawabanmu
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (!interactive) {
+    return <div className={`${shell} ${look}`}>{content}</div>;
+  }
+
+  return (
+    <label className={`${shell} ${look} cursor-pointer has-focus-visible:outline has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent`}>
+      <input
+        type="radio"
+        name={`question-${questionId}`}
+        value={letter}
+        checked={selected}
+        onChange={() => onSelect(letter)}
+        className="sr-only"
+      />
+      {content}
+    </label>
   );
 }

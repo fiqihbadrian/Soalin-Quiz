@@ -1,20 +1,27 @@
-export function Footer() {
-  const year = new Date().getFullYear();
+import Link from "next/link";
 
+export function Footer() {
   return (
-    <footer className="border-t border-[#30363d] py-6 mt-12">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center text-sm text-[#8b949e]">
+    <footer className="mt-16 border-t border-rule">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-8 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>
-          © {year} Soalin · Dibuat oleh{" "}
+          Soalin, dibuat oleh{" "}
           <a
             href="https://fiqihbadrian.my.id"
             target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#e6edf3] hover:text-[#7ba8cc] transition-colors underline-offset-2 hover:underline"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center text-ink underline decoration-rule underline-offset-4 transition-colors hover:decoration-ink"
           >
             Fiqih Badrian
           </a>
+          . Kuis disusun oleh model AI, selalu cek ulang ke materi aslinya.
         </p>
+        <Link
+          href="/login"
+          className="inline-flex min-h-11 items-center text-ink underline decoration-rule underline-offset-4 transition-colors hover:decoration-ink"
+        >
+          Masuk
+        </Link>
       </div>
     </footer>
   );

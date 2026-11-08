@@ -14,22 +14,30 @@ export function HeaderUserMenu({ username, isAdmin }: HeaderUserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // Tutup dropdown kalau klik di luar
+  // Tutup menu saat klik di luar atau tekan Escape
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+    const onPointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   const onLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    // Sengaja TIDAK clear quiz state di localStorage supaya kalau user ini
-    // login lagi nanti, state-nya masih ada. ensureOwner di tiap halaman
-    // bakal handle kalau user berbeda yang login.
+    // State kuis sengaja tidak dihapus: kalau user yang sama masuk lagi,
+    // progresnya masih ada. ensureOwner di tiap halaman yang menjaga
+    // kalau user berbeda yang login.
     setOpen(false);
     router.push("/");
     router.refresh();
@@ -39,56 +47,69 @@ export function HeaderUserMenu({ username, isAdmin }: HeaderUserMenuProps) {
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex min-h-11 items-center gap-2 rounded-[10px] border border-rule bg-surface px-2.5 text-sm text-ink transition-colors hover:border-ink-muted"
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#618eb3] text-white text-xs font-bold">
+        <span
+          aria-hidden="true"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-[4px] bg-accent-soft font-mono text-xs font-semibold text-accent"
+        >
           {username.charAt(0).toUpperCase()}
         </span>
-        <span className="hidden sm:inline">{username}</span>
+        <span className="hidden max-w-[9rem] truncate sm:inline">
+          {username}
+        </span>
         <svg
-          className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
           viewBox="0 0 12 12"
+          className={`h-3 w-3 text-ink-muted transition-transform ${open ? "rotate-180" : ""}`}
           fill="currentColor"
           aria-hidden="true"
         >
-          <path d="M6 8L2 4h8l-4 4z" />
+          <path d="M6 8.5 2.5 5h7L6 8.5Z" />
         </svg>
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-[#161b22] border border-[#30363d] rounded-2xl shadow-lg py-1 z-10">
-          <div className="px-3 py-2 border-b border-[#30363d]">
-            <p className="text-xs text-[#8b949e]">Masuk sebagai</p>
-            <p className="text-sm text-[#e6edf3] font-medium truncate">
-              {username}
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-10 mt-2 w-52 rounded-[10px] border border-rule bg-surface py-1 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.35)]"
+        >
+          <div className="border-b border-rule px-3 py-2.5">
+            <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">
+              Masuk sebagai
             </p>
+            <p className="truncate text-sm font-medium text-ink">{username}</p>
           </div>
 
           <Link
+            role="menuitem"
             href="/upload"
             onClick={() => setOpen(false)}
-            className="block px-3 py-2 text-sm text-[#e6edf3] hover:bg-[#21262d]"
+            className="flex min-h-11 items-center px-3 text-sm text-ink transition-colors hover:bg-surface-strong"
           >
-            Upload & Buat Kuis
+            Upload dan buat kuis
           </Link>
 
           {isAdmin ? (
             <Link
+              role="menuitem"
               href="/admin-secret-panel"
               onClick={() => setOpen(false)}
-              className="block px-3 py-2 text-sm text-[#e6edf3] hover:bg-[#21262d]"
+              className="flex min-h-11 items-center px-3 text-sm text-ink transition-colors hover:bg-surface-strong"
             >
-              Panel Admin
+              Panel admin
             </Link>
           ) : null}
 
           <button
+            role="menuitem"
             type="button"
             onClick={onLogout}
-            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-[#21262d]"
+            className="flex min-h-11 w-full items-center px-3 text-left text-sm text-danger transition-colors hover:bg-surface-strong"
           >
-            Logout
+            Keluar
           </button>
         </div>
       ) : null}

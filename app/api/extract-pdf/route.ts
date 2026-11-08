@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 // Pastikan ini jalan di Node.js (pdf-parse butuh Node API)
 export const runtime = "nodejs";
@@ -8,6 +9,18 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10MB
 
 export async function POST(req: NextRequest) {
   try {
+    // Ekstraksi PDF memakan CPU, jadi dibatasi 20 berkas per 10 menit
+    const limit = await rateLimit(`soalin:pdf:${clientIp(req)}`, 20, 600);
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Terlalu banyak unggahan. Tunggu sebentar lalu coba lagi." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfter) },
+        }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -40,9 +53,17 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Cek tanda tangan berkas, supaya file lain yang diganti namanya
+    // jadi .pdf tidak ikut diproses
+    if (buffer.length < 5 || buffer.subarray(0, 5).toString("latin1") !== "%PDF-") {
+      return NextResponse.json(
+        { error: "Isi berkas bukan PDF yang sah." },
+        { status: 415 }
+      );
+    }
+
     // Import dinamis supaya probe file test di pdf-parse tidak ikut jalan
     // pas Next.js build. Kita impor langsung implementasi intinya.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (
       data: Buffer
     ) => Promise<{ text: string }>;

@@ -1,36 +1,155 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tema dipilih lewat class di <html>, diset oleh next-themes */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  color-scheme: dark;
+  --paper: #f3f5f6;
+  --surface: #fafbfc;
+  --surface-strong: #e7ecf0;
+  --ink: #14202b;
+  --ink-muted: #43525e;
+  --rule: #d5dde4;
+  --accent: #2c5f8a;
+  --accent-hover: #26557d;
+  --accent-fg: #ffffff;
+  --accent-soft: #e2ebf2;
+  --danger: #a63a2b;
+  --danger-soft: #f6e1dc;
+  --warn: #8a5b12;
+  --warn-soft: #f4e9d5;
 }
 
-html,
-body {
-  background-color: #0d1117;
-  color: #e6edf3;
+.dark {
+  --paper: #0d1117;
+  --surface: #161b22;
+  --surface-strong: #1c2430;
+  --ink: #e6edf3;
+  --ink-muted: #8b949e;
+  --rule: #30363d;
+  --accent: #7ba8cc;
+  --accent-hover: #95bcd9;
+  --accent-fg: #0d1117;
+  --accent-soft: #152734;
+  --danger: #f09a8d;
+  --danger-soft: #3a1f1b;
+  --warn: #e4c583;
+  --warn-soft: #3a2f18;
 }
 
-body {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-label: 4px;
+  --radius-control: 10px;
+  --radius-card: 14px;
 }
 
-/* Custom thin scrollbar to fit the dark theme */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  .dark html,
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Semua kontrol yang bisa dipakai menampilkan kursor tangan */
+  a[href],
+  button:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label[for],
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Fokus selalu kelihatan, termasuk saat navigasi keyboard */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  /* Angka skor dan nomor soal tidak bergeser saat nilainya berubah */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
-::-webkit-scrollbar-track {
-  background: #0d1117;
-}
-::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+
+@layer components {
+  /* Motif identitas: label bab bergaya buku pelajaran */
+  .chapter-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .chapter-label::before {
+    content: "";
+    display: block;
+    width: 1.5rem;
+    height: 1px;
+    background-color: var(--rule);
+  }
+
+  /* Aturan buku: garis ganda tipis sebagai pemisah bagian */
+  .rule-stack {
+    border-top: 1px solid var(--rule);
+    box-shadow: 0 3px 0 -2px var(--rule);
+  }
 }

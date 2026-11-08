@@ -1,20 +1,41 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, ChangeEvent, DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/Notice";
 import { Spinner } from "@/components/ui/Spinner";
 import { SemesterSelector } from "@/components/SemesterSelector";
 import { useQuizStore } from "@/store/quizStore";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useHydrated } from "@/lib/useHydrated";
 import { QUESTION_COUNT_OPTIONS } from "@/lib/types";
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 type Phase = "idle" | "extracting" | "generating";
+
+const CAKUPAN = [
+  {
+    value: false,
+    title: "Fokus",
+    body: "Soal hanya dari konsep yang dibahas di PDF.",
+  },
+  {
+    value: true,
+    title: "Luas",
+    body: "PDF jadi pijakan, soal boleh merambah konsep sejenis.",
+  },
+];
 
 export default function UploadPage() {
   const router = useRouter();
@@ -35,39 +56,37 @@ export default function UploadPage() {
     setQuestionCount,
     setSupplementMode,
     setQuestions,
+    resetAll,
   } = useQuizStore();
 
-  // Hydration guard — jangan render UI yang pakai persisted state
-  // sampai localStorage beneran ke-load
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  // Tunggu localStorage selesai dibaca sebelum menampilkan state tersimpan
+  const hydrated = useHydrated();
 
-  // Pastikan state yang ke-load milik user yang sekarang login,
-  // bukan bekas user sebelumnya
+  // Buang state kuis kalau pemiliknya user lain
   useEffect(() => {
-    if (!userLoading && user) {
-      ensureOwner(user.username);
-    }
+    if (!userLoading && user) ensureOwner(user.username);
   }, [user, userLoading, ensureOwner]);
 
   const [dragActive, setDragActive] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFile = useCallback(
     async (file: File) => {
       setError(null);
 
-      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        setError("Hanya file PDF yang didukung.");
+      const isPdf =
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        setError("Berkas harus berformat PDF.");
         return;
       }
 
       if (file.size > MAX_BYTES) {
-        setError("File terlalu besar. Maksimal 10MB.");
+        setError("Ukuran berkas melebihi 10 MB. Kompres atau pisahkan materinya.");
         return;
       }
 
@@ -89,12 +108,14 @@ export default function UploadPage() {
         const data = (await res.json()) as { text: string };
         if (!data.text || data.text.trim().length < 20) {
           throw new Error(
-            "Teks yang terbaca dari PDF terlalu sedikit. Coba file lain."
+            "Teks yang terbaca terlalu sedikit. Kemungkinan PDF hasil pindai tanpa lapisan teks."
           );
         }
+
         setPdfText(data.text, file.name);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
+        const message =
+          err instanceof Error ? err.message : "Terjadi kesalahan.";
         setError(message);
       } finally {
         setPhase("idle");
@@ -103,25 +124,26 @@ export default function UploadPage() {
     [setPdfText]
   );
 
-  const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file) handleFile(file);
+    event.target.value = "";
   };
 
-  const onDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setDragActive(false);
-    const file = e.dataTransfer.files?.[0];
+    const file = event.dataTransfer.files?.[0];
     if (file) handleFile(file);
   };
 
-  const onDrag = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+  const onDrag = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === "dragenter" || event.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (event.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -130,7 +152,7 @@ export default function UploadPage() {
     setError(null);
 
     if (!pdfText) {
-      setError("Upload PDF terlebih dahulu.");
+      setError("Unggah PDF terlebih dahulu.");
       return;
     }
 
@@ -162,289 +184,290 @@ export default function UploadPage() {
   };
 
   const busy = phase !== "idle";
-  const canGenerate = !!pdfText && !busy;
+  const canGenerate = Boolean(pdfText) && !busy;
+  const answeredCount = Object.keys(userAnswers).length;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-[#e6edf3]">
-              Upload & Konfigurasi
-            </h1>
-            <p className="mt-2 text-[#8b949e]">
-              Drop ringkasan kuliah kamu, lalu pilih semester dan jumlah soal.
-            </p>
-          </div>
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+          <p className="chapter-label">Langkah 1 dan 2</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.01em] text-ink sm:text-3xl">
+            Unggah materi, atur kuis
+          </h1>
+          <p className="mt-2 max-w-2xl leading-relaxed text-ink-muted">
+            Teks diambil langsung dari PDF, lalu dikirim ke model AI untuk
+            disusun jadi soal. Berkas tidak disimpan di server.
+          </p>
 
           {error ? (
-            <Card error className="mb-6">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/10 border border-red-500/60 text-red-400 text-sm font-bold">
-                  !
-                </span>
-                <div>
-                  <p className="text-red-400 font-medium">Terjadi kesalahan</p>
-                  <p className="text-sm text-[#8b949e] mt-1">{error}</p>
-                </div>
-              </div>
-            </Card>
+            <div className="mt-6">
+              <Notice tone="danger">{error}</Notice>
+            </div>
           ) : null}
 
-          {/* Banner: ada kuis yang belum selesai */}
           {hydrated && questions.length > 0 && !quizComplete ? (
-            <Card className="mb-6 border-[#618eb3] bg-[#1a2a3a]">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#618eb3] text-white text-sm font-bold flex-shrink-0">
-                    ↺
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[#e6edf3] font-medium">
-                      Kamu punya kuis yang belum selesai
-                    </p>
-                    <p className="text-sm text-[#8b949e] mt-0.5">
-                      {Object.keys(userAnswers).length} dari {questions.length} soal terjawab
-                      {fileName ? ` · ${fileName}` : ""}
-                    </p>
+            <div className="mt-6 rounded-[14px] border border-rule bg-accent-soft px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-ink">
+                    Ada kuis yang belum selesai
+                  </p>
+                  <p className="mt-0.5 text-sm text-ink-muted">
+                    {answeredCount} dari {questions.length} soal terjawab
+                    {fileName ? `, ${fileName}` : ""}
+                  </p>
+                </div>
+
+                {confirmReset ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-ink-muted">Buang kuis ini?</span>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        resetAll();
+                        setConfirmReset(false);
+                      }}
+                    >
+                      Ya, buang
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="quiet"
+                      onClick={() => setConfirmReset(false)}
+                    >
+                      Batal
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button
-                    onClick={() => router.push("/quiz")}
-                    size="sm"
-                  >
-                    Lanjutkan
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      if (
-                        confirm(
-                          "Buang kuis yang belum selesai dan mulai upload PDF baru?"
-                        )
-                      ) {
-                        useQuizStore.getState().resetAll();
-                      }
-                    }}
-                  >
-                    Buang
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => router.push("/quiz")}>
+                      Lanjutkan kuis
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setConfirmReset(true)}
+                    >
+                      Buang
+                    </Button>
+                  </div>
+                )}
               </div>
-            </Card>
+            </div>
           ) : null}
 
-          {/* Banner: PDF udah ke-upload tapi belum generate */}
-          {hydrated &&
-          pdfText &&
-          questions.length === 0 &&
-          fileName ? (
-            <Card className="mb-6 border-[#30363d] bg-[#0d1117]">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#21262d] border border-[#30363d] text-[#8b949e] text-xs font-bold flex-shrink-0">
-                  i
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            {/* Berkas */}
+            <section className="rounded-[14px] border border-rule bg-surface">
+              <div className="flex items-baseline justify-between gap-3 border-b border-rule px-5 py-3">
+                <h2 className="text-sm font-medium text-ink">Berkas PDF</h2>
+                <span className="font-mono text-xs text-ink-muted">
+                  maks 10 MB
                 </span>
-                <p className="text-sm text-[#8b949e]">
-                  PDF <span className="text-[#e6edf3] font-medium">{fileName}</span> masih
-                  tersimpan. Langsung lanjut generate kuis di bawah, atau upload PDF lain
-                  untuk menggantinya.
-                </p>
-              </div>
-            </Card>
-          ) : null}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* KIRI: Upload */}
-            <Card>
-              <h2 className="text-lg font-semibold text-[#e6edf3]">Upload PDF</h2>
-              <p className="text-sm text-[#8b949e] mt-1">Maksimal 10MB, hanya PDF</p>
-
-              <div
-                onDragEnter={onDrag}
-                onDragLeave={onDrag}
-                onDragOver={onDrag}
-                onDrop={onDrop}
-                className={[
-                  "mt-4 border-2 border-dashed rounded-full p-8 text-center transition-colors",
-                  dragActive
-                    ? "border-[#7ba8cc] bg-[#0d1117]"
-                    : "border-[#30363d] bg-[#0d1117]",
-                ].join(" ")}
-              >
-                <div className="flex flex-col items-center">
-                  <svg
-                    className="h-10 w-10 text-[#8b949e]"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16.5V18a2 2 0 002 2h12a2 2 0 002-2v-1.5" />
-                  </svg>
-
-                  <p className="mt-3 text-[#e6edf3]">
-                    Seret & lepas PDF di sini
-                  </p>
-                  <p className="text-sm text-[#8b949e] mt-1">atau</p>
-
-                  <button
-                    type="button"
-                    onClick={() => inputRef.current?.click()}
-                    disabled={busy}
-                    className="mt-3 px-4 py-2 text-sm rounded-full border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:bg-[#30363d] transition-colors disabled:opacity-50"
-                  >
-                    Pilih File
-                  </button>
-
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    className="hidden"
-                    onChange={onInputChange}
-                  />
-                </div>
               </div>
 
-              {phase === "extracting" ? (
-                <div className="mt-4">
-                  <Spinner label="Membaca PDF..." />
-                </div>
-              ) : null}
-
-              {fileName && phase !== "extracting" ? (
-                <div className="mt-4 flex items-center gap-3 p-3 bg-[#0d1117] border border-[#30363d] rounded-full">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#21262d] border border-[#30363d] text-[#e6edf3] text-xs font-bold">
-                    PDF
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm text-[#e6edf3] truncate">{fileName}</p>
-                    <p className="text-xs text-[#8b949e]">
-                      {pdfText.length.toLocaleString("id-ID")} karakter terbaca
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-            </Card>
-
-            {/* KANAN: Konfigurasi */}
-            <Card>
-              <h2 className="text-lg font-semibold text-[#e6edf3]">Pengaturan Kuis</h2>
-
-              <div className="mt-5">
-                <label className="block text-sm text-[#e6edf3] mb-2">
-                  Semester
-                </label>
-                <SemesterSelector value={semester} onChange={setSemester} />
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm text-[#e6edf3] mb-2">
-                  Jumlah Soal
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {QUESTION_COUNT_OPTIONS.map((count) => {
-                    const isActive = count === questionCount;
-                    return (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() => setQuestionCount(count)}
-                        className={[
-                          "py-2 px-2 text-sm rounded-full border transition-colors",
-                          "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
-                          isActive
-                            ? "bg-[#618eb3] border-[#618eb3] text-white hover:bg-[#7ba8cc]"
-                            : "bg-[#161b22] border-[#30363d] text-[#e6edf3] hover:border-[#8b949e]",
-                        ].join(" ")}
+              <div className="p-5">
+                {fileName && pdfText ? (
+                  <div className="rounded-[10px] border border-rule bg-paper px-4 py-4">
+                    <div className="flex items-start gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-rule bg-surface font-mono text-[10px] text-ink-muted"
                       >
-                        {count}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        PDF
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">
+                          {fileName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-ink-muted">
+                          {pdfText.length.toLocaleString("id-ID")} karakter
+                          terbaca
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Mode sumber soal */}
-              <div className="mt-6">
-                <label className="block text-sm text-[#e6edf3] mb-2">
-                  Cakupan Soal
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSupplementMode(false)}
-                    className={[
-                      "py-3 px-3 text-left rounded-2xl border transition-colors",
-                      "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
-                      !supplementMode
-                        ? "bg-[#1a2a3a] border-[#618eb3]"
-                        : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
-                    ].join(" ")}
-                    aria-pressed={!supplementMode}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => inputRef.current?.click()}
+                        disabled={busy}
+                      >
+                        Ganti berkas
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="quiet"
+                        onClick={() => setPdfText("", "")}
+                        disabled={busy}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDragEnter={onDrag}
+                    onDragLeave={onDrag}
+                    onDragOver={onDrag}
+                    onDrop={onDrop}
+                    className={`rounded-[10px] border border-dashed px-5 py-10 text-center transition-colors ${
+                      dragActive
+                        ? "border-accent bg-accent-soft"
+                        : "border-rule bg-paper"
+                    }`}
                   >
-                    <p className="text-sm font-medium text-[#e6edf3]">
-                      Fokus
-                    </p>
-                    <p className="text-xs text-[#8b949e] mt-1">
-                      Sesuai topik PDF
-                    </p>
-                  </button>
+                    {phase === "extracting" ? (
+                      <Spinner label="Membaca teks dari PDF" />
+                    ) : (
+                      <>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="mx-auto h-8 w-8 text-ink-muted"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+                          <path d="M14 3v5h5" />
+                          <path d="M12 17v-5M9.5 14.5 12 12l2.5 2.5" />
+                        </svg>
 
-                  <button
-                    type="button"
-                    onClick={() => setSupplementMode(true)}
-                    className={[
-                      "py-3 px-3 text-left rounded-2xl border transition-colors",
-                      "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
-                      supplementMode
-                        ? "bg-[#1a2a3a] border-[#618eb3]"
-                        : "bg-[#161b22] border-[#30363d] hover:border-[#8b949e]",
-                    ].join(" ")}
-                    aria-pressed={supplementMode}
-                  >
-                    <p className="text-sm font-medium text-[#e6edf3]">
-                      Luas
-                    </p>
-                    <p className="text-xs text-[#8b949e] mt-1">
-                      PDF + konsep tema sejenis
-                    </p>
-                  </button>
-                </div>
-                <p className="text-xs text-[#8b949e] mt-2">
-                  {supplementMode
-                    ? "Soal menguji pemahaman umum seputar tema PDF, bisa meluas ke konsep sejenis yang tidak disebut langsung."
-                    : "Soal hanya menguji konsep yang dibahas di PDF, tapi ditulis sebagai pengetahuan umum (bukan soal tentang isi dokumen)."}
+                        <p className="mt-3 text-sm text-ink">
+                          Tarik PDF ke sini
+                        </p>
+                        <p className="mt-0.5 text-xs text-ink-muted">
+                          Materi kuliah, rangkuman, atau slide
+                        </p>
+
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="mt-4"
+                          onClick={() => inputRef.current?.click()}
+                          disabled={busy}
+                        >
+                          Pilih berkas
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <input
+                  ref={inputRef}
+                  id="pdf-input"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={onInputChange}
+                  className="sr-only"
+                  tabIndex={-1}
+                />
+
+                <p className="mt-3 text-xs leading-relaxed text-ink-muted">
+                  PDF harus berisi teks yang bisa dipilih. Hasil pindai tanpa
+                  lapisan teks tidak terbaca.
                 </p>
               </div>
+            </section>
 
-              <div className="mt-8">
-                <Button
-                  onClick={onGenerate}
-                  disabled={!canGenerate}
-                  fullWidth
-                  size="lg"
-                >
-                  {phase === "generating" ? (
-                    <Spinner label="Membuat soal dengan AI..." size="sm" />
-                  ) : (
-                    "Buat Kuis"
-                  )}
-                </Button>
-
-                {!pdfText && !busy ? (
-                  <p className="text-xs text-[#8b949e] mt-2 text-center">
-                    Upload PDF dulu untuk mengaktifkan tombol ini.
-                  </p>
-                ) : null}
+            {/* Pengaturan */}
+            <section className="rounded-[14px] border border-rule bg-surface">
+              <div className="border-b border-rule px-5 py-3">
+                <h2 className="text-sm font-medium text-ink">Pengaturan</h2>
               </div>
-            </Card>
+
+              <div className="flex flex-col gap-6 p-5">
+                <SemesterSelector value={semester} onChange={setSemester} />
+
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-ink">
+                    Jumlah soal
+                  </legend>
+                  <div className="grid grid-cols-4 gap-2">
+                    {QUESTION_COUNT_OPTIONS.map((count) => {
+                      const selected = count === questionCount;
+                      return (
+                        <button
+                          key={count}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setQuestionCount(count)}
+                          className={`min-h-11 rounded-[10px] border font-mono text-sm tabular transition-colors ${
+                            selected
+                              ? "border-accent bg-accent-soft text-accent"
+                              : "border-rule bg-paper text-ink-muted hover:border-ink-muted hover:text-ink"
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-ink">
+                    Cakupan soal
+                  </legend>
+                  <div className="flex flex-col gap-2">
+                    {CAKUPAN.map((option) => {
+                      const selected = option.value === supplementMode;
+                      return (
+                        <button
+                          key={option.title}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setSupplementMode(option.value)}
+                          className={`rounded-[10px] border px-3 py-2.5 text-left transition-colors ${
+                            selected
+                              ? "border-accent bg-accent-soft"
+                              : "border-rule bg-paper hover:border-ink-muted"
+                          }`}
+                        >
+                          <span className="block text-sm font-medium text-ink">
+                            {option.title}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">
+                            {option.body}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="border-t border-rule pt-4">
+                  <Button
+                    onClick={onGenerate}
+                    disabled={!canGenerate}
+                    block
+                  >
+                    {phase === "generating" ? (
+                      <Spinner label="Menyusun soal" />
+                    ) : (
+                      `Buat ${questionCount} soal`
+                    )}
+                  </Button>
+
+                  <p className="mt-2 text-center text-xs leading-relaxed text-ink-muted">
+                    {!pdfText
+                      ? "Tombol aktif setelah ada PDF yang terbaca."
+                      : phase === "generating"
+                        ? "Soal disusun setelah teks PDF dikirim."
+                        : `Soal akan menyesuaikan semester ${semester}.`}
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </main>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { QuizQuestion } from "@/lib/types";
+import { getSession } from "@/lib/auth";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,7 +44,7 @@ User akan mengerjakan kuis TANPA akses ke PDF materi. Mereka menjawab dari pemah
 - ❌ "Hasil perhitungan dari soal latihan di modul..."
 - ❌ Segala rujukan ke "materi", "dokumen", "rangkuman", "PDF", "file ini"
 
-**WAJIB**: Setiap soal harus bisa dijawab hanya dengan pemahaman konsep umum. Soal harus berdiri sendiri — seperti soal di buku teks standar, bukan soal kuis dari kelas spesifik.
+**WAJIB**: Setiap soal harus bisa dijawab hanya dengan pemahaman konsep umum. Soal harus berdiri sendiri, seperti soal di buku teks standar, bukan soal kuis dari kelas spesifik.
 
 **Contoh yang BENAR**:
 - ✓ "Apa yang dimaksud dengan normalisasi dalam basis data?"
@@ -116,11 +118,11 @@ function buildStrictRules(): string {
 
 1. **Cakupan terbatas ke PDF**: Hanya bikin soal tentang konsep/topik yang disinggung di materi PDF. Jangan melebar ke topik lain di luar scope PDF.
 
-2. **Tapi tetap self-contained**: Soal tetap harus bisa dijawab tanpa baca PDF — pakai pemahaman konsep umum. Ambil KONSEP dari PDF, bukan detail spesifik dokumen.
+2. **Tapi tetap self-contained**: Soal tetap harus bisa dijawab tanpa baca PDF, pakai pemahaman konsep umum. Ambil KONSEP dari PDF, bukan detail spesifik dokumen.
 
 3. **Jika PDF pendek atau tipis**: Buat soal sebanyak yang memungkinkan (minimal 3) dari konsep yang ada. Jangan mengarang topik yang tidak dibahas sama sekali di PDF.
 
-4. **Contoh yang benar**: PDF bahas tentang "TCP vs UDP" → bikin soal tentang perbedaan keduanya, port yang umum dipakai, kasus pemakaian — semua sebagai pengetahuan konsep umum.
+4. **Contoh yang benar**: PDF bahas tentang "TCP vs UDP" → bikin soal tentang perbedaan keduanya, port yang umum dipakai, kasus pemakaian, semua sebagai pengetahuan konsep umum.
 
 5. **Contoh yang salah**: PDF bahas TCP vs UDP → DILARANG bikin soal "Berapa nilai throughput TCP di tabel pertemuan 2?" karena ini rujuk dokumen spesifik.`;
 }
@@ -132,7 +134,7 @@ function buildSupplementRules(): string {
 
 2. **Identifikasi tema**: Pelajari dulu tema utama materi (misal: "Pemrograman Berorientasi Objek", "Ekonomi Mikro Bab 3", "Jaringan Komputer OSI Model").
 
-3. **Boleh perluas pengetahuan umum**: Kalau topik di PDF terbatas, boleh bikin soal tentang konsep lain yang masih dalam tema sama — asalkan informasi yang SUDAH ada di buku teks standar bidang tersebut (bukan pendapat, tren, atau fakta yang butuh rujukan khusus).
+3. **Boleh perluas pengetahuan umum**: Kalau topik di PDF terbatas, boleh bikin soal tentang konsep lain yang masih dalam tema sama, asalkan informasi yang SUDAH ada di buku teks standar bidang tersebut (bukan pendapat, tren, atau fakta yang butuh rujukan khusus).
 
 4. **Tetap self-contained**: Semua soal (baik dari PDF maupun supplement) wajib bisa dijawab tanpa PDF, pakai pemahaman konsep.
 
@@ -140,7 +142,7 @@ function buildSupplementRules(): string {
 
 6. **Konsistensi tingkat**: Soal tambahan harus selevel dengan materi PDF (jangan lebih mendalam dari cakupan semester).
 
-7. **Jangan hallucinate fakta spesifik**: Untuk nama orang, tanggal persis, statistik khusus, rumus niche — jangan karang. Fokus ke konsep umum.`;
+7. **Jangan hallucinate fakta spesifik**: Untuk nama orang, tanggal persis, statistik khusus, rumus niche, jangan karang. Fokus ke konsep umum.`;
 }
 
 function getDifficultyGuide(semester: number): string {
@@ -186,7 +188,6 @@ function cleanPdfText(raw: string): string {
   let text = raw;
 
   // Hapus null byte dan karakter kontrol kecuali newline & tab
-  // eslint-disable-next-line no-control-regex
   text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
   // Gabung baris yang terputus di tengah kalimat (huruf kecil + newline + huruf kecil/lanjutan)
@@ -317,7 +318,7 @@ function parseQuestionsWithRecovery(jsonStr: string): unknown[] {
     }
 
     if (end === -1) {
-      // Object yang belum selesai (ke-cut di akhir) — skip
+      // Object yang belum selesai (ke-cut di akhir), skip
       break;
     }
 
@@ -377,7 +378,7 @@ function validateQuestions(input: unknown): QuizQuestion[] {
       return;
     }
 
-    // Kadang model kasih "A." atau "A)" — normalize ke "A"
+    // Kadang model kasih "A." atau "A)", normalize ke "A"
     const correct = correctRaw?.charAt(0);
     if (!correct || !["A", "B", "C", "D"].includes(correct)) return;
 
@@ -399,7 +400,7 @@ function validateQuestions(input: unknown): QuizQuestion[] {
 }
 
 /**
- * Pola yang nunjukin soal rujuk ke dokumen — harus di-filter.
+ * Pola yang nunjukin soal rujuk ke dokumen, harus di-filter.
  * Soal yang kena pola ini bakal dibuang karena user gak bisa jawab tanpa PDF.
  */
 const DOC_REFERENCE_PATTERNS = [
@@ -444,15 +445,22 @@ function filterSelfContained(questions: QuizQuestion[]): QuizQuestion[] {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
+    // Tiap kuis memakai kuota model AI, jadi dibatasi per akun dan per alamat
+    const session = await getSession();
+    const who = session ? `user:${session.sub}` : `ip:${clientIp(req)}`;
+    const limit = await rateLimit(`soalin:soal:${who}`, 12, 3600);
+    if (!limit.ok) {
       return NextResponse.json(
-        { error: "Server belum di-set OPENROUTER_API_KEY. Set dulu di .env.local." },
-        { status: 500 }
+        {
+          error:
+            "Batas pembuatan soal tercapai (12 kuis per jam). Coba lagi nanti.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfter) },
+        }
       );
     }
-
-    const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -470,6 +478,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "pdfText wajib diisi dan harus berupa konten yang bermakna." },
         { status: 400 }
+      );
+    }
+
+    // Batas atas teks yang dikirim ke model, supaya biaya per permintaan
+    // terbatas. 400 ribu karakter kira-kira 80 sampai 100 ribu token.
+    const MAX_TEXT_CHARS = 400_000;
+    if (pdfText.length > MAX_TEXT_CHARS) {
+      return NextResponse.json(
+        {
+          error: `Teks PDF terlalu panjang (${pdfText.length.toLocaleString(
+            "id-ID"
+          )} karakter). Maksimal ${MAX_TEXT_CHARS.toLocaleString("id-ID")} karakter, kira-kira 200 halaman.`,
+        },
+        { status: 413 }
       );
     }
 
@@ -491,9 +513,22 @@ export async function POST(req: NextRequest) {
 
     const supplement = supplementMode === true;
 
+    // Kunci AI dicek setelah validasi, supaya kesalahan masukan dilaporkan
+    // apa adanya, bukan tertutup pesan "layanan belum siap".
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      console.error("OPENROUTER_API_KEY belum di-set di environment server.");
+      return NextResponse.json(
+        { error: "Layanan AI belum siap di server. Hubungi admin." },
+        { status: 503 }
+      );
+    }
+
+    const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+
     const systemPrompt = buildSystemPrompt(countNum, semesterNum, supplement);
 
-    // Bersihkan teks PDF sebelum dikirim ke model — pdf-parse sering
+    // Bersihkan teks PDF sebelum dikirim ke model, pdf-parse sering
     // ninggalin whitespace berlebih, line break ditengah kalimat, dll
     const cleanedText = cleanPdfText(pdfText);
 
@@ -523,10 +558,13 @@ Mulai output JSON-nya sekarang:`;
     // ~500 token per soal (q + 4 pilihan + explanation + overhead), plus buffer
     const maxTokens = Math.max(3000, countNum * 600);
 
-    // OpenRouter uses an OpenAI-compatible chat completions endpoint
-    const orResponse = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
+    // Endpoint kompatibel OpenAI. Bisa diarahkan ke gateway lain (misalnya
+    // 9router saat demo lokal) lewat OPENROUTER_BASE_URL.
+    const baseUrl = (
+      process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
+    ).replace(/\/$/, "");
+
+    const orResponse = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -567,9 +605,21 @@ Mulai output JSON-nya sekarang:`;
       );
     }
 
-    const data = (await orResponse.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    // Sebagian gateway (misalnya 9router) menempelkan penanda akhir SSE
+    // "data: [DONE]" setelah objek JSON, jadi parse dari teks mentah.
+    const rawBody = await orResponse.text();
+    const jsonBody = rawBody.replace(/\s*data:\s*\[DONE\]\s*$/i, "").trim();
+
+    let data: { choices?: { message?: { content?: string } }[] };
+    try {
+      data = JSON.parse(jsonBody) as typeof data;
+    } catch {
+      console.error("Respons AI bukan JSON utuh:", rawBody.slice(0, 400));
+      return NextResponse.json(
+        { error: "Respons layanan AI tidak lengkap. Coba lagi." },
+        { status: 502 }
+      );
+    }
 
     const raw = data.choices?.[0]?.message?.content?.trim() || "";
 
@@ -582,7 +632,7 @@ Mulai output JSON-nya sekarang:`;
 
     const jsonStr = extractJsonArray(raw);
 
-    // Pakai recovery parser — handle JSON ke-cut, trailing comma, dll
+    // Pakai recovery parser, handle JSON ke-cut, trailing comma, dll
     const parsedObjects = parseQuestionsWithRecovery(jsonStr);
 
     if (parsedObjects.length === 0) {
@@ -596,7 +646,7 @@ Mulai output JSON-nya sekarang:`;
       );
     }
 
-    // Validasi lenient — skip soal yang rusak, ambil yang valid
+    // Validasi lenient, skip soal yang rusak, ambil yang valid
     let questions = validateQuestions(parsedObjects);
 
     if (questions.length === 0) {
@@ -635,8 +685,9 @@ Mulai output JSON-nya sekarang:`;
     return NextResponse.json({ questions });
   } catch (err) {
     console.error("generate-quiz unexpected error:", err);
-    const message =
-      err instanceof Error ? err.message : "Kesalahan server yang tak terduga.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menyusun soal. Coba lagi sebentar lagi." },
+      { status: 500 }
+    );
   }
 }

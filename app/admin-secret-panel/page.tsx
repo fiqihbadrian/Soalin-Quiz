@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 import { Spinner } from "@/components/ui/Spinner";
 
 interface AdminUser {
@@ -18,34 +19,46 @@ export default function AdminPanelPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Form state
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [creating, setCreating] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const loadUsers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/users");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal memuat user.");
-      setUsers(data.users || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    let cancelled = false;
 
-  const onCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+    fetch("/api/admin/users")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Gagal memuat daftar user.");
+        if (cancelled) return;
+        setUsers(data.users || []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  const loadUsers = () => {
+    setLoading(true);
+    setReloadKey((key) => key + 1);
+  };
+
+  const onCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
     setNotice(null);
 
@@ -67,7 +80,7 @@ export default function AdminPanelPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal membuat user.");
 
-      setNotice(`User "${data.user.username}" berhasil dibuat.`);
+      setNotice(`User ${data.user.username} dibuat.`);
       setNewUsername("");
       setNewPassword("");
       loadUsers();
@@ -79,150 +92,152 @@ export default function AdminPanelPage() {
   };
 
   const onDelete = async (id: string, username: string) => {
-    if (!confirm(`Yakin hapus user "${username}"?`)) return;
-
+    setError(null);
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal hapus user.");
-      setNotice(`User "${username}" dihapus.`);
+      if (!res.ok) throw new Error(data.error || "Gagal menghapus user.");
+      setNotice(`User ${username} dihapus.`);
+      setPendingDelete(null);
       loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     }
   };
 
-  const onLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
-  };
-
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-semibold text-[#e6edf3]">
-                Panel Admin
-              </h1>
-              <p className="mt-1 text-sm text-[#8b949e]">
-                Kelola user Soalin
-              </p>
-            </div>
-            <Button variant="secondary" onClick={onLogout}>
-              Logout
-            </Button>
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+          <p className="chapter-label">Admin</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.01em] text-ink sm:text-3xl">
+            Kelola akun
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+            Pengguna bisa mendaftar sendiri dari halaman daftar. Form di bawah
+            disediakan untuk membuat akun tanpa pendaftaran, misalnya saat
+            pendaftaran sedang ditutup.
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {error ? <Notice tone="danger">{error}</Notice> : null}
+            {notice ? <Notice tone="success">{notice}</Notice> : null}
           </div>
 
-          {error ? (
-            <Card error className="mb-6">
-              <p className="text-sm text-red-400">{error}</p>
-            </Card>
-          ) : null}
+          <section className="mt-8 rounded-[14px] border border-rule bg-surface">
+            <div className="border-b border-rule px-5 py-3">
+              <h2 className="text-sm font-medium text-ink">Buat akun baru</h2>
+            </div>
 
-          {notice ? (
-            <Card className="mb-6 border-[#618eb3]">
-              <p className="text-sm text-[#7ba8cc]">{notice}</p>
-            </Card>
-          ) : null}
-
-          {/* Form buat user baru */}
-          <Card className="mb-8">
-            <h2 className="text-lg font-semibold text-[#e6edf3]">Buat User Baru</h2>
-            <p className="text-sm text-[#8b949e] mt-1">
-              Username hanya huruf kecil, angka, dan underscore (3-32 karakter).
-              Password minimal 6 karakter.
-            </p>
-
-            <form onSubmit={onCreate} className="mt-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-[#e6edf3] mb-1.5">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    disabled={creating}
-                    className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
-                    placeholder="contoh_user"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#e6edf3] mb-1.5">
-                    Password
-                  </label>
-                  <input
-                    type="text"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={creating}
-                    className="w-full px-3 py-2 rounded-full bg-[#0d1117] border border-[#30363d] text-[#e6edf3] text-sm focus:outline-none focus:border-[#7ba8cc] focus:ring-1 focus:ring-[#7ba8cc] disabled:opacity-50"
-                    placeholder="minimal 6 karakter"
-                  />
-                </div>
+            <form onSubmit={onCreate} className="flex flex-col gap-4 p-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  id="new-username"
+                  label="Username"
+                  value={newUsername}
+                  onChange={(event) => setNewUsername(event.target.value)}
+                  disabled={creating}
+                  placeholder="nama_user"
+                  hint="Huruf kecil, angka, atau garis bawah. 3 sampai 32 karakter."
+                  autoComplete="off"
+                />
+                <Field
+                  id="new-password"
+                  label="Password"
+                  type="text"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  disabled={creating}
+                  placeholder="minimal 6 karakter"
+                  hint="Tampil apa adanya supaya bisa disalin dan dikirim ke pemilik akun."
+                  autoComplete="off"
+                />
               </div>
 
-              <Button type="submit" disabled={creating}>
-                {creating ? <Spinner label="Membuat..." size="sm" /> : "Buat User"}
-              </Button>
+              <div>
+                <Button type="submit" disabled={creating}>
+                  {creating ? <Spinner label="Membuat akun" /> : "Buat akun"}
+                </Button>
+              </div>
             </form>
-          </Card>
+          </section>
 
-          {/* List user */}
-          <Card padded={false}>
-            <div className="p-5 border-b border-[#30363d]">
-              <h2 className="text-lg font-semibold text-[#e6edf3]">
-                Daftar User ({users.length})
-              </h2>
+          <section className="mt-8 rounded-[14px] border border-rule bg-surface">
+            <div className="flex items-baseline justify-between gap-3 border-b border-rule px-5 py-3">
+              <h2 className="text-sm font-medium text-ink">Daftar akun</h2>
+              <span className="font-mono text-xs tabular text-ink-muted">
+                {users.length}
+              </span>
             </div>
 
             {loading ? (
-              <div className="p-8 flex justify-center">
-                <Spinner label="Memuat user..." />
+              <div className="px-5 py-8">
+                <Spinner label="Memuat akun" />
               </div>
             ) : users.length === 0 ? (
-              <div className="p-8 text-center text-sm text-[#8b949e]">
-                Belum ada user. Buat user pertama di atas.
-              </div>
+              <p className="px-5 py-8 text-sm text-ink-muted">
+                Belum ada akun. Buat yang pertama di form atas.
+              </p>
             ) : (
-              <ul className="divide-y divide-[#30363d]">
-                {users.map((u) => (
+              <ul>
+                {users.map((item) => (
                   <li
-                    key={u.id}
-                    className="p-5 flex items-center justify-between gap-4"
+                    key={item.id}
+                    className="flex flex-col gap-3 border-b border-rule px-5 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="text-[#e6edf3] font-medium truncate">
-                        {u.username}
+                      <p className="truncate text-sm font-medium text-ink">
+                        {item.username}
+                        {item.role === "admin" ? (
+                          <span className="ml-2 rounded-[4px] border border-rule px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+                            admin
+                          </span>
+                        ) : null}
                       </p>
-                      <p className="text-xs text-[#8b949e] mt-1">
-                        {u.role} · dibuat{" "}
-                        {new Date(u.created_at).toLocaleDateString("id-ID", {
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        Dibuat{" "}
+                        {new Date(item.created_at).toLocaleDateString("id-ID", {
                           day: "numeric",
-                          month: "short",
+                          month: "long",
                           year: "numeric",
                         })}
                       </p>
                     </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onDelete(u.id, u.username)}
-                    >
-                      Hapus
-                    </Button>
+
+                    {pendingDelete === item.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-ink-muted">Hapus akun ini?</span>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => onDelete(item.id, item.username)}
+                        >
+                          Ya
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="quiet"
+                          onClick={() => setPendingDelete(null)}
+                        >
+                          Batal
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setPendingDelete(item.id)}
+                      >
+                        Hapus
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
-          </Card>
+          </section>
         </div>
       </main>
 

@@ -2,46 +2,43 @@
 
 import { SEMESTER_DESCRIPTIONS } from "@/lib/types";
 
-interface SemesterSelectorProps {
+export function SemesterSelector({
+  value,
+  onChange,
+}: {
   value: number;
-  onChange: (semester: number) => void;
-}
-
-export function SemesterSelector({ value, onChange }: SemesterSelectorProps) {
-  const selected = SEMESTER_DESCRIPTIONS.find((s) => s.level === value);
+  onChange: (level: number) => void;
+}) {
+  const active =
+    SEMESTER_DESCRIPTIONS.find((item) => item.level === value) ??
+    SEMESTER_DESCRIPTIONS[0];
 
   return (
-    <div>
-      {/* Segmented button grid — flat, no gradients */}
+    <fieldset>
+      <legend className="mb-2 text-sm font-medium text-ink">
+        Semester materi
+      </legend>
       <div className="grid grid-cols-4 gap-2">
-        {SEMESTER_DESCRIPTIONS.map((sem) => {
-          const isActive = sem.level === value;
+        {SEMESTER_DESCRIPTIONS.map((item) => {
+          const selected = item.level === value;
           return (
             <button
-              key={sem.level}
+              key={item.level}
               type="button"
-              onClick={() => onChange(sem.level)}
-              className={[
-                "py-2 px-2 text-sm rounded-full border transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#7ba8cc] focus:ring-offset-2 focus:ring-offset-[#0d1117]",
-                isActive
-                  ? "bg-[#618eb3] border-[#618eb3] text-white hover:bg-[#7ba8cc]"
-                  : "bg-[#161b22] border-[#30363d] text-[#e6edf3] hover:border-[#8b949e]",
-              ].join(" ")}
-              aria-pressed={isActive}
+              aria-pressed={selected}
+              onClick={() => onChange(item.level)}
+              className={`min-h-11 rounded-[10px] border font-mono text-sm tabular transition-colors ${
+                selected
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-rule bg-paper text-ink-muted hover:border-ink-muted hover:text-ink"
+              }`}
             >
-              S{sem.level}
+              {item.level}
             </button>
           );
         })}
       </div>
-
-      {selected ? (
-        <p className="mt-3 text-sm text-[#8b949e]">
-          <span className="text-[#e6edf3] font-medium">{selected.label}:</span>{" "}
-          {selected.description}
-        </p>
-      ) : null}
-    </div>
+      <p className="mt-2 text-xs text-ink-muted">{active.description}</p>
+    </fieldset>
   );
 }

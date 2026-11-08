@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-// Path yang butuh login (selain admin)
+// Path halaman yang butuh login
 const PROTECTED_PATHS = ["/upload", "/quiz", "/results"];
 
 // Path API yang butuh login
@@ -31,7 +31,7 @@ async function verifyToken(token: string) {
   }
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
@@ -99,7 +99,7 @@ export async function middleware(req: NextRequest) {
 
   // Cek role untuk halaman admin
   if (isAdmin && session.role !== "admin") {
-    // Pura-pura 404 — biar halaman admin gak ketauan orang biasa
+    // Pura-pura 404 supaya halaman admin tidak ketahuan orang biasa
     const url = req.nextUrl.clone();
     url.pathname = "/not-found";
     return NextResponse.rewrite(url);
