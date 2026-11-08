@@ -57,8 +57,6 @@ Tema mengikuti preferensi sistem dan bisa diganti manual lewat tombol di header.
 
 ![Demo pemakaian Soalin: daftar akun, unggah PDF, kerjakan kuis, lalu baca pembahasan](images/demo-soalin.gif)
 
-Rekaman pemakaian dari awal sampai akhir, 90 detik tanpa suara: daftar akun, unggah PDF, atur semester dan jumlah soal, kerjakan kuis, baca pembahasan, ganti tema, lalu panel admin. Versi MP4 ada di [images/demo-soalin.mp4](images/demo-soalin.mp4).
-
 ## Teknologi yang Digunakan
 
 - Next.js 16 (App Router, Turbopack) + React 19 + TypeScript
@@ -100,15 +98,3 @@ Project by Fiqih Badrian
 
 - Website: https://fiqihbadrian.my.id
 - Demo app: https://soalin.fiqihbadrian.my.id/
-
-
-
-## Live Preview (Gambar)
-
-![Halaman beranda Soalin](images/dekstop.png)
-![Halaman login](images/login.png)
-![Halaman upload dan pengaturan kuis](images/upload.png)
-
----
-
-*Terakhir diperbarui: 8 November 2026*
